@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting your phone line switched on</title>
+<meta name="description" content="Step-by-step account setup for the AI courier booking line.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700&family=Overpass+Mono:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  /* ── Colour tokens. Light is the complete base palette. ───────────────── */
+  :root {
+    --paper:      #f6f7f9;
+    --surface:    #ffffff;
+    --surface-2:  #eef1f5;
+    --ink:        #16202d;
+    --ink-2:      #4b5a6d;
+    --ink-3:      #6e7c8d;
+    --rule:       #dce2e9;
+    --rule-firm:  #c3cdd8;
+    --accent:     #14538f;
+    --accent-2:   #1d6ab5;
+    --accent-soft:#e7eff8;
+    --warn:       #a8570a;
+    --warn-soft:  #fcf1e2;
+    --go:         #17694a;
+    --go-soft:    #e4f0ea;
+    --shadow:     0 1px 2px rgba(22,32,45,.05), 0 8px 24px -16px rgba(22,32,45,.28);
+
+    --font-head: "Overpass", "Helvetica Neue", Arial, sans-serif;
+    --font-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --font-util: "Overpass Mono", ui-monospace, Consolas, monospace;
+  }
+
+  /* Only the tokens change for dark. Components never restyle themselves. */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #0e1520;
+      --surface:    #141d2a;
+      --surface-2:  #1b2634;
+      --ink:        #e8edf3;
+      --ink-2:      #aebbc9;
+      --ink-3:      #8595a6;
+      --rule:       #263243;
+      --rule-firm:  #35455a;
+      --accent:     #7fb3e8;
+      --accent-2:   #9ac6f2;
+      --accent-soft:#14283f;
+      --warn:       #e0a356;
+      --warn-soft:  #33260f;
+      --go:         #6fc49e;
+      --go-soft:    #10281e;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink-2);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.5rem 6rem; }
+
+  /* ── Masthead ─────────────────────────────────────────────────────────── */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 4rem 0 1.75rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .eyebrow {
+    font-family: var(--font-util);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1rem;
+  }
+
+  h1 {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: clamp(2.1rem, 6vw, 3.05rem);
+    line-height: 1.04;
+    letter-spacing: -.025em;
+    color: var(--ink);
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+
+  .standfirst {
+    font-size: 1.16rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 34rem;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 2rem;
+    margin-top: 1.75rem;
+    font-family: var(--font-util);
+    font-size: .78rem;
+    color: var(--ink-3);
+  }
+  .facts b { color: var(--ink); font-weight: 600; }
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  h2 {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 1.62rem;
+    line-height: 1.15;
+    letter-spacing: -.018em;
+    color: var(--ink);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h3 {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--ink);
+    margin: 2rem 0 .5rem;
+  }
+
+  p { margin: 0 0 1rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { color: var(--accent-2); }
+  strong { color: var(--ink); font-weight: 600; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  section { margin-bottom: 3.25rem; }
+  .lede { font-size: 1.06rem; }
+
+  ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+  li { margin-bottom: .5rem; }
+  li::marker { color: var(--ink-3); }
+  ol.tight { padding-left: 1.35rem; }
+  ol.tight li { margin-bottom: .55rem; }
+
+  /* ── Panels ───────────────────────────────────────────────────────────── */
+  .band {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.5rem 1.6rem;
+    box-shadow: var(--shadow);
+  }
+  .band h2 { font-size: 1.2rem; margin-bottom: .75rem; }
+
+  /* ── Order table ──────────────────────────────────────────────────────── */
+  .scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    min-width: 34rem;
+    border-collapse: collapse;
+    font-family: var(--font-head);
+    font-size: .92rem;
+  }
+  th {
+    text-align: left;
+    font-family: var(--font-util);
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule-firm);
+    padding: 0 1rem .6rem 0;
+    white-space: nowrap;
+  }
+  td {
+    padding: .8rem 1rem .8rem 0;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink-2);
+    vertical-align: top;
+  }
+  td:first-child {
+    font-family: var(--font-util);
+    color: var(--ink-3);
+    width: 2rem;
+    font-variant-numeric: tabular-nums;
+  }
+  td b { color: var(--ink); font-weight: 600; }
+  .when { white-space: nowrap; font-family: var(--font-util); font-size: .82rem; }
+
+  /* ── Steps ────────────────────────────────────────────────────────────── */
+  .step { margin-bottom: 3.5rem; }
+
+  .step-head {
+    display: grid;
+    grid-template-columns: 3.1rem 1fr;
+    gap: 1rem;
+    align-items: start;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--rule-firm);
+    margin-bottom: 1.5rem;
+  }
+
+  .num {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 3px;
+    height: 3.1rem;
+    display: grid;
+    place-items: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin: .55rem 0 0;
+    font-family: var(--font-util);
+    font-size: .76rem;
+    color: var(--ink-3);
+  }
+
+  .chip { display: inline-block; padding: .18rem .55rem; border-radius: 3px; font-weight: 600; }
+  .chip-block { background: var(--warn-soft); color: var(--warn); }
+  .chip-wait  { background: var(--accent-soft); color: var(--accent); }
+
+  /* ── Callouts ─────────────────────────────────────────────────────────── */
+  .note {
+    border-left: 3px solid var(--rule-firm);
+    padding: .1rem 0 .1rem 1.1rem;
+    margin: 1.25rem 0;
+  }
+  .note p:last-child { margin-bottom: 0; }
+  .note-warn { border-left-color: var(--warn); }
+  .note-warn strong { color: var(--warn); }
+
+  .handback {
+    background: var(--go-soft);
+    border-radius: 4px;
+    padding: .9rem 1.1rem;
+    margin-top: 1.5rem;
+    font-family: var(--font-head);
+    font-size: .95rem;
+    color: var(--ink);
+  }
+  .handback b {
+    display: block;
+    font-family: var(--font-util);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--go);
+    margin-bottom: .3rem;
+  }
+
+  code, .mono {
+    font-family: var(--font-util);
+    font-size: .88em;
+    background: var(--surface-2);
+    padding: .12em .38em;
+    border-radius: 3px;
+    color: var(--ink);
+    word-break: break-word;
+  }
+
+  .email {
+    display: inline-block;
+    font-family: var(--font-util);
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: .35rem .6rem;
+    border-radius: 3px;
+    word-break: break-all;
+  }
+
+  /* ── Checklist ────────────────────────────────────────────────────────── */
+  .check { list-style: none; padding: 0; margin: 0; }
+  .check li {
+    position: relative;
+    padding-left: 1.9rem;
+    margin-bottom: .6rem;
+    font-family: var(--font-head);
+    font-size: .95rem;
+  }
+  .check li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .18em;
+    width: 1.05rem;
+    height: 1.05rem;
+    border: 1.5px solid var(--rule-firm);
+    border-radius: 2px;
+    background: var(--surface);
+  }
+
+  .check-head {
+    font-family: var(--font-util);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 1.75rem 0 .85rem;
+  }
+
+  .signoff { border-top: 2px solid var(--ink); padding-top: 1.75rem; margin-top: 4rem; }
+
+  @media (max-width: 34rem) {
+    body { font-size: 16px; }
+    .step-head { grid-template-columns: 2.5rem 1fr; gap: .8rem; }
+    .num { height: 2.5rem; font-size: 1.2rem; }
+    .wrap { padding: 0 1.15rem 4rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  /* Force the light palette when printing or saving to PDF, even if the
+     reader's machine is in dark mode. */
+  @media print {
+    :root {
+      --paper: #ffffff; --surface: #ffffff; --surface-2: #f2f4f7;
+      --ink: #16202d; --ink-2: #3c4859; --ink-3: #6e7c8d;
+      --rule: #dce2e9; --rule-firm: #b9c4d0;
+      --accent: #14538f; --accent-soft: #eaf1f8;
+      --warn: #8a4708; --warn-soft: #fbf2e5;
+      --go: #145c40; --go-soft: #e8f2ec;
+      --shadow: none;
+    }
+    body { font-size: 10.5pt; }
+    .step, .band, .handback { page-break-inside: avoid; }
+    a { text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Same-day courier &middot; AI booking line</p>
+    <h1>Getting your phone line switched on</h1>
+    <p class="standfirst">
+      Everything that needs setting up, in the order that actually makes sense.
+      None of it is technical &mdash; it's mostly signing up for things and
+      putting a card on file.
+    </p>
+    <div class="facts">
+      <span><b>About an hour</b> of your time</span>
+      <span><b>Six accounts</b>, all in your company name</span>
+      <span><b>Two</b> need doing this week</span>
+    </div>
+  </header>
+
+  <section>
+    <p class="lede">
+      You don't need to do this in one sitting. Each section stands on its own,
+      and I've put the two time-sensitive ones first. If a website looks
+      different to how I've described it &mdash; they redesign these things
+      constantly &mdash; send me a screenshot and I'll point you at the right
+      button.
+    </p>
+  </section>
+
+  <section class="band">
+    <h2>Have these to hand</h2>
+    <ul>
+      <li><strong>The company card.</strong> Every account goes on this, not mine.</li>
+      <li><strong>A company email address.</strong> Something like
+        <span class="mono">admin@yourcompany.co.uk</span> rather than a personal
+        Gmail, so the accounts stay with the business if staff change.</li>
+      <li><strong>Proof of your business address.</strong> A recent utility bill
+        or bank statement. Twilio won't issue a UK phone number without it.</li>
+      <li><strong>Your mobile.</strong> Several of these will text you a code.</li>
+    </ul>
+    <p style="margin-bottom:0">
+      Wherever you're asked to invite me, the address is
+      <span class="email">mohammadrabby.dil@gmail.com</span>
+    </p>
+  </section>
+
+  <section>
+    <h2>The order to do things in</h2>
+    <p>
+      Two of these involve a waiting period, so the order isn't just about
+      what's most important &mdash; it's about what to get into the queue early.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Account</th><th>Time</th><th>Why here</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td><b>Google Maps</b></td><td class="when">10 min</td>
+            <td>Nothing can quote a price until this is done. Instant once it is.</td></tr>
+          <tr><td>2</td><td><b>Twilio</b></td><td class="when">20 min</td>
+            <td>Your phone number needs approval, which takes a few days. Start it early and carry on.</td></tr>
+          <tr><td>3</td><td><b>Vapi</b></td><td class="when">10 min</td>
+            <td>The AI voice itself.</td></tr>
+          <tr><td>4</td><td><b>Cal.com</b></td><td class="when">5 min</td>
+            <td>The booking calendar.</td></tr>
+          <tr><td>5</td><td><b>Sheets &amp; email</b></td><td class="when">10 min</td>
+            <td>Where your booking records live.</td></tr>
+          <tr><td>6</td><td><b>Hosting</b></td><td class="when">10 min</td>
+            <td>Keeps the line running when my computer is off.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">1</div>
+      <div>
+        <h2>Google Maps</h2>
+        <p class="step-meta">
+          <span>About 10 minutes</span>
+          <span class="chip chip-block">Holding everything up</span>
+        </p>
+      </div>
+    </div>
+
+    <p>
+      This is what measures the distance between the pickup and the delivery
+      address, which is how the price gets worked out. Until it's live, the
+      assistant can answer the phone and take all the details, but it can't
+      quote &mdash; it hands the caller to a human instead.
+    </p>
+
+    <p>
+      This will be <strong>a completely new account of your own</strong>. Nothing
+      is carried over from my side &mdash; the whole thing sits under your
+      company from the very start, on your card, with you as the owner.
+    </p>
+
+    <h3>Create the account and project</h3>
+    <ol class="tight">
+      <li>Go to <a href="https://console.cloud.google.com">console.cloud.google.com</a>
+        and sign in with the company Google account. If you've not used it
+        before it'll offer you a free trial &mdash; accept it.</li>
+      <li>At the top of the page there's a project dropdown, probably saying
+        &ldquo;Select a project&rdquo;. Click it, then <strong>New Project</strong>.</li>
+      <li>Call it something like <span class="mono">Courier Booking System</span>,
+        click <strong>Create</strong>, then make sure it's the one selected in
+        that dropdown.</li>
+    </ol>
+
+    <h3>Put a card on file</h3>
+    <ol class="tight">
+      <li>Type <strong>Billing</strong> into the search bar at the top and open it.</li>
+      <li>Click <strong>Link a billing account</strong>, then
+        <strong>Create billing account</strong>.</li>
+      <li>Enter the company details and card.</li>
+    </ol>
+
+    <div class="note">
+      <p>
+        You'll almost certainly never be charged for this. Google gives a free
+        monthly allowance that comfortably covers a business your size. But they
+        refuse every single request unless a card is on file &mdash; that's the
+        bit currently stopping us.
+      </p>
+    </div>
+
+    <h3>Turn the mapping on</h3>
+    <ol class="tight">
+      <li>Search for <strong>Distance Matrix API</strong>.</li>
+      <li>Open it and click <strong>Enable</strong>.</li>
+    </ol>
+
+    <div class="note note-warn">
+      <p>
+        <strong>Worth being fussy here.</strong> It has to be
+        <em>Distance Matrix API</em> specifically. Google has several
+        similarly-named mapping services and the others won't work &mdash; this
+        is the single most common thing to get wrong.
+      </p>
+    </div>
+
+    <h3>Set a spending cap</h3>
+    <ol class="tight">
+      <li>Search for <strong>Budgets &amp; alerts</strong>, then
+        <strong>Create budget</strong>.</li>
+      <li>Set it to <strong>&pound;30 a month</strong> and tick the alert boxes
+        (50%, 90%, 100%).</li>
+    </ol>
+    <p>You'll now hear about anything unusual long before it matters.</p>
+
+    <h3>Add me as a user</h3>
+    <ol class="tight">
+      <li>Search for <strong>IAM</strong> and open it.</li>
+      <li>Click <strong>Grant access</strong>.</li>
+      <li>Under &ldquo;New principals&rdquo; put
+        <span class="mono">mohammadrabby.dil@gmail.com</span>, give it the
+        <strong>Editor</strong> role, and save.</li>
+    </ol>
+
+    <div class="handback">
+      <b>Then just tell me</b>
+      Message me &ldquo;Google's done&rdquo; &mdash; I can see the rest from my
+      end, and I'll confirm within a few minutes that pricing is working.
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">2</div>
+      <div>
+        <h2>Twilio</h2>
+        <p class="step-meta">
+          <span>About 20 minutes</span>
+          <span class="chip chip-wait">Approval takes 1&ndash;3 working days</span>
+        </p>
+      </div>
+    </div>
+
+    <p>
+      This gives you the phone number itself, and sends the confirmation texts
+      your customers receive.
+    </p>
+
+    <div class="note note-warn">
+      <p>
+        <strong>Start this one early even though it's not blocking.</strong>
+        UK phone numbers are regulated, so Twilio has to verify your business
+        address before it'll issue one, and that check can take a few days.
+        Everything else here is instant. Get this into the queue and carry on
+        with the rest while it's being checked.
+      </p>
+    </div>
+
+    <h3>Create the account and upgrade it</h3>
+    <ol class="tight">
+      <li>Sign up at <a href="https://www.twilio.com/try-twilio">twilio.com/try-twilio</a>
+        with the company email, and verify your email and mobile.</li>
+      <li>Find <strong>Upgrade</strong> &mdash; usually top-right or under
+        billing &mdash; and add the company card.</li>
+      <li>It'll ask for an opening top-up. <strong>&pound;20 is plenty</strong>
+        to start with.</li>
+    </ol>
+
+    <p>
+      The upgrade isn't optional, I'm afraid. Free Twilio accounts can only text
+      numbers you've verified one at a time, so real customers would simply never
+      get their confirmation.
+    </p>
+
+    <h3>Submit your address proof</h3>
+    <ol class="tight">
+      <li>Search the console for <strong>Regulatory Compliance</strong> and open
+        <strong>Bundles</strong>.</li>
+      <li>Click <strong>Create new Bundle</strong>, choose
+        <strong>United Kingdom</strong> and that you're a business.</li>
+      <li>Upload the utility bill or bank statement, fill in the company details,
+        and submit.</li>
+    </ol>
+    <p>That's the slow part done. Nothing else depends on it, so keep going.</p>
+
+    <h3>Buy the number (once approved)</h3>
+    <ol class="tight">
+      <li>Go to <strong>Phone Numbers &rarr; Buy a number</strong>.</li>
+      <li>Set the country to <strong>United Kingdom</strong>.</li>
+      <li>Tick both <strong>Voice</strong> and <strong>SMS</strong> in the
+        capability filters, then pick a number you like.</li>
+    </ol>
+
+    <div class="note">
+      <p>
+        It does need to be a UK number. There's a US one on the system at the
+        moment, and UK mobile networks filter texts from US numbers heavily
+        &mdash; they look like they've sent, but a lot of them never arrive.
+      </p>
+    </div>
+
+    <h3>Set a cap, and add me</h3>
+    <ol class="tight">
+      <li>Search for <strong>Usage triggers</strong> and set an alert around
+        <strong>&pound;40 a month</strong>.</li>
+      <li>Go to <strong>Account &rarr; Manage users &rarr; Invite user</strong>
+        and add <span class="mono">mohammadrabby.dil@gmail.com</span> as an
+        Administrator.</li>
+    </ol>
+    <p>
+      If your plan doesn't offer user invites, don't worry &mdash; there's a safe
+      way to send me what I need further down.
+    </p>
+
+    <div class="handback">
+      <b>Then just tell me</b>
+      Send me the new UK number once you've got it.
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">3</div>
+      <div>
+        <h2>Vapi</h2>
+        <p class="step-meta"><span>About 10 minutes</span></p>
+      </div>
+    </div>
+
+    <p>
+      This is the part that actually speaks to your callers and understands what
+      they're asking for.
+    </p>
+
+    <ol class="tight">
+      <li>Sign up at <a href="https://dashboard.vapi.ai">dashboard.vapi.ai</a>
+        with the company email.</li>
+      <li>Open <strong>Billing</strong> in the left-hand menu and add the card.</li>
+      <li>While you're there, set a monthly limit &mdash;
+        <strong>&pound;100</strong> is a sensible place to start, and you can
+        raise it any time.</li>
+      <li>Go to <strong>Organisation &rarr; Members &rarr; Invite</strong> and
+        add <span class="mono">mohammadrabby.dil@gmail.com</span>.</li>
+    </ol>
+
+    <div class="note note-warn">
+      <p>
+        <strong>The spending limit is the one I'd really encourage you to set.</strong>
+        Vapi is charged by the minute, so a fault that left a call connected is
+        the only realistic way this could ever run up a bill you weren't
+        expecting. A cap takes that off the table entirely.
+      </p>
+    </div>
+
+    <div class="handback">
+      <b>Then just tell me</b>
+      &ldquo;Vapi's ready&rdquo; is all I need. The voice, the script and the
+      booking logic are all my job from there &mdash; you won't have to configure
+      any of it.
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">4</div>
+      <div>
+        <h2>Cal.com</h2>
+        <p class="step-meta"><span>About 5 minutes</span></p>
+      </div>
+    </div>
+
+    <p>This is the calendar confirmed jobs land in.</p>
+
+    <ol class="tight">
+      <li>Sign up at <a href="https://cal.com">cal.com</a> with the company
+        email. The free plan is fine to begin with.</li>
+      <li>Go to <strong>Event Types &rarr; New</strong>. Title it
+        <strong>Courier Collection</strong>, set it to
+        <strong>60 minutes</strong>, and save.</li>
+      <li>Open <strong>Availability</strong> and set it to match when you
+        actually operate. If you run around the clock, set it to all day, every
+        day.</li>
+    </ol>
+
+    <p>
+      That availability matters more than it looks &mdash; the assistant checks
+      it before it promises a slot to anyone.
+    </p>
+
+    <h3>Two things to send me</h3>
+    <ol class="tight">
+      <li><strong>The event type ID.</strong> Open the Courier Collection event
+        you just made and look at the web address. It ends in a number, like
+        <span class="mono">.../event-types/123456</span> &mdash; that number is
+        all I need.</li>
+      <li><strong>An API key</strong>, from
+        <strong>Settings &rarr; Developer &rarr; API keys &rarr; Add</strong>.
+        This one's a password, so please send it the safe way described below
+        rather than by email.</li>
+    </ol>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">5</div>
+      <div>
+        <h2>Your booking records</h2>
+        <p class="step-meta"><span>About 10 minutes</span></p>
+      </div>
+    </div>
+
+    <h3>The spreadsheet</h3>
+    <ol class="tight">
+      <li>Create a new blank sheet at
+        <a href="https://sheets.google.com">sheets.google.com</a> and name the
+        file something like <strong>Courier Bookings</strong>.</li>
+      <li>At the bottom left, rename the tab from
+        <span class="mono">Sheet1</span> to exactly
+        <span class="mono">Bookings</span> &mdash; capital B, since the system
+        looks for that precise name.</li>
+      <li>Send me the web address.</li>
+    </ol>
+
+    <p>
+      I'll send you back a long robot-looking email address ending in
+      <span class="mono">.iam.gserviceaccount.com</span>. Hit
+      <strong>Share</strong> on the spreadsheet, paste it in and give it
+      <strong>Editor</strong>. That's what lets bookings write themselves into
+      the sheet as they come in.
+    </p>
+
+    <h3>Confirmation emails</h3>
+    <p>
+      Customers get an email as well as a text, so the system needs permission to
+      send from one of your addresses. I'd suggest making a dedicated one like
+      <span class="mono">bookings@yourcompany.co.uk</span> rather than using your
+      main inbox &mdash; that way it's isolated if it ever needs revoking.
+    </p>
+
+    <ol class="tight">
+      <li>Sign in to that account and turn on
+        <strong>2-Step Verification</strong> at
+        <a href="https://myaccount.google.com/security">myaccount.google.com/security</a>.</li>
+      <li>Go to
+        <a href="https://myaccount.google.com/apppasswords">myaccount.google.com/apppasswords</a>
+        and create one called
+        <span class="mono">Courier Booking System</span>.</li>
+      <li>Google shows you 16 characters. Send those over the safe way below.</li>
+    </ol>
+
+    <div class="note">
+      <p>
+        An app password sounds alarming but isn't. It's a single-purpose password
+        that only lets software send mail &mdash; it can't be used to sign in and
+        read your email, and you can cancel it in one click from that same page.
+      </p>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">6</div>
+      <div>
+        <h2>Hosting</h2>
+        <p class="step-meta"><span>About 10 minutes</span></p>
+      </div>
+    </div>
+
+    <p>
+      At the moment everything runs on my computer, which means your line is only
+      up when my machine is. Hosting moves it onto a proper server so it answers
+      at three in the morning without me being awake.
+    </p>
+
+    <ul>
+      <li><strong>Simplest:</strong> open an account at
+        <a href="https://railway.app">railway.app</a> or
+        <a href="https://render.com">render.com</a> on the company card, around
+        &pound;5&ndash;10 a month, then invite me.</li>
+      <li><strong>Or:</strong> if you already have a web host or an IT provider,
+        just tell me who and I'll deal with them directly.</li>
+    </ul>
+
+    <p>Once the account exists, the deployment is my end.</p>
+  </section>
+
+  <section class="band">
+    <h2>Sending me passwords safely</h2>
+    <p>
+      A couple of things above &mdash; the Cal.com key, the email app password
+      &mdash; are effectively passwords. Please don't send those by email,
+      WhatsApp or text. Those messages sit on servers and in backups more or less
+      forever.
+    </p>
+    <p>
+      <strong>The easy way:</strong> go to
+      <a href="https://send.bitwarden.com">send.bitwarden.com</a>, paste the
+      text, set it to expire after one day and one view, and send me the link it
+      gives you. It's free and doesn't need an account.
+    </p>
+    <p style="margin-bottom:0">
+      If that's a faff, just ring me and read it out. Anything that isn't secret
+      &mdash; the phone number, the spreadsheet link, the event type ID &mdash;
+      is fine to send however you like.
+    </p>
+  </section>
+
+  <section>
+    <h2>Where you're up to</h2>
+    <p>Something to tick off as you go.</p>
+
+    <p class="check-head">This week</p>
+    <ul class="check">
+      <li>Google Cloud project created, card added</li>
+      <li>Distance Matrix API enabled</li>
+      <li>&pound;30 budget alert set</li>
+      <li>Invited me to Google Cloud</li>
+      <li>Twilio account created and upgraded</li>
+      <li>Address proof submitted to Twilio</li>
+    </ul>
+
+    <p class="check-head">Once Twilio approves</p>
+    <ul class="check">
+      <li>UK number bought, with Voice and SMS</li>
+      <li>Sent me the new number</li>
+    </ul>
+
+    <p class="check-head">Any time after that</p>
+    <ul class="check">
+      <li>Vapi account created, card added, spending limit set</li>
+      <li>Invited me to Vapi</li>
+      <li>Cal.com event type created and availability set</li>
+      <li>Sent me the event type ID and API key</li>
+      <li>Spreadsheet created with a tab named Bookings</li>
+      <li>Spreadsheet shared with the address I send you</li>
+      <li>App password created for the sending address</li>
+      <li>Hosting account created</li>
+    </ul>
+  </section>
+
+  <section class="signoff">
+    <h2>What happens after that</h2>
+    <p>
+      Once step one is done I can switch pricing on the same day, and you'll be
+      able to ring the test line and hear it quote a real job back to you.
+    </p>
+    <p>Everything from there is configuration at my end. I'll only need you for three things:</p>
+    <ul>
+      <li>Checking the <strong>prices</strong> are right before any real customer
+        hears them.</li>
+      <li>A <strong>test call together</strong>, so you can hear how it sounds
+        and tell me what to change about the wording or the tone.</li>
+      <li>Your <strong>mobile number</strong>, for the calls it hands over to a
+        human.</li>
+    </ul>
+    <p style="margin-bottom:0">
+      Anything at all that doesn't look right, message me &mdash; there's no such
+      thing as a daft question on this.
+    </p>
+  </section>
+
+</div>
+
+</body>
+</html>

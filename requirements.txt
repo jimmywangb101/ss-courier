@@ -1,0 +1,36 @@
+# Courier AI Voice Agent — Python dependencies
+# Install with:  ./venv/Scripts/python.exe -m pip install -r requirements.txt
+#
+# Versions below match what is currently installed in ./venv (Python 3.14.6).
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi==0.141.1
+uvicorn==0.52.4
+starlette==1.6.0
+pydantic==2.13.4
+
+# ── HTTP client (async — used for Google Maps, Cal.com, Twilio, Sheets) ───────
+httpx==0.28.1
+
+# ── Config ────────────────────────────────────────────────────────────────────
+python-dotenv==1.2.3
+
+# ── Google Sheets auth (service-account -> OAuth access token) ────────────────
+# We deliberately do NOT use google-api-python-client: it is synchronous and
+# would block the event loop. We only need google-auth to mint a token, then we
+# talk to the Sheets REST API with httpx.
+google-auth==2.57.0
+
+# ── Timezone database ─────────────────────────────────────────────────────────
+# Windows does not ship the IANA timezone data, so ZoneInfo("Europe/London")
+# fails without this. Needed for correct British Summer Time handling.
+tzdata==2026.3
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest==9.1.1
+
+# Notes:
+#  * Twilio  — no SDK needed. The Twilio SDK is blocking; we call its REST API
+#              directly with httpx (basic auth + form-encoded body).
+#  * Email   — no SDK needed. We use the stdlib `smtplib`, run inside
+#              asyncio.to_thread() so it never blocks the event loop.

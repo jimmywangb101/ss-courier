@@ -1,0 +1,476 @@
+###############################################################################
+#  Courier AI Voice Agent — manual endpoint tests
+#
+#  HOW TO USE
+#  Install the "REST Client" extension in VS Code (publisher: Humao Zhao),
+#  then click the little "Send Request" link that appears above each request.
+#
+#  Start the API first:
+#     ./venv/Scripts/python.exe -m uvicorn api.main:app --reload
+#
+#  Switch @host to the ngrok line to test what Vapi will actually reach.
+###############################################################################
+
+@host = http://localhost:8000
+# @host = https://childless-stride-clunky.ngrok-free.dev
+
+# Paste a real reference here after running "Create a booking" below.
+@reference = CRR-20260915-K7Q4
+
+
+###############################################################################
+#  PHASE 1 — health and pricing
+###############################################################################
+
+### Health check — also shows which integrations are configured
+GET {{host}}/health
+
+
+### Quote: light load, short distance (no surcharge)
+POST {{host}}/quote
+Content-Type: application/json
+
+{
+  "pickup_address": "1 Oxford Street, London, W1D 1BS",
+  "dropoff_address": "Canary Wharf, London, E14 5AB",
+  "weight_kg": 350,
+  "date": "2026-09-15",
+  "time": "10:00"
+}
+
+
+### Quote: heavy but within capacity — expect the 10% surcharge
+POST {{host}}/quote
+Content-Type: application/json
+
+{
+  "pickup_address": "Manchester Piccadilly, M1 1RG",
+  "dropoff_address": "Leeds City Centre, LS1 1BA",
+  "weight_kg": 650,
+  "date": "2026-09-15",
+  "time": "14:30"
+}
+
+
+### Quote: over capacity — expect action "redirect", NOT a rejection
+POST {{host}}/quote
+Content-Type: application/json
+
+{
+  "pickup_address": "Birmingham New Street, B2 4QA",
+  "dropoff_address": "Bristol Temple Meads, BS1 6QF",
+  "weight_kg": 900,
+  "date": "2026-09-15",
+  "time": "09:00"
+}
+
+
+### Quote: zero weight — expect action "error"
+POST {{host}}/quote
+Content-Type: application/json
+
+{
+  "pickup_address": "Glasgow Central, G1 3SL",
+  "dropoff_address": "Edinburgh Waverley, EH1 1BB",
+  "weight_kg": 0,
+  "date": "2026-09-15",
+  "time": "11:00"
+}
+
+
+###############################################################################
+#  PHASE 2 — Vapi webhooks
+#  Every response has a "result" field: that is the sentence the AI reads out.
+###############################################################################
+
+### Vapi quote — modern "tool-calls" format (what Vapi sends today)
+POST {{host}}/vapi/quote
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "tool-calls",
+    "call": { "id": "test_call_1", "customer": { "number": "+447700900123" } },
+    "toolCalls": [
+      {
+        "id": "tool_1",
+        "type": "function",
+        "function": {
+          "name": "get_quote",
+          "arguments": {
+            "pickup_address": "1 Oxford Street, London, W1D 1BS",
+            "dropoff_address": "Canary Wharf, London, E14 5AB",
+            "weight_kg": 350,
+            "date": "2026-09-15",
+            "time": "10:00"
+          }
+        }
+      }
+    ]
+  }
+}
+
+
+### Vapi quote — legacy "function-call" format (older assistants)
+POST {{host}}/vapi/quote
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "function-call",
+    "call": { "id": "test_call_2" },
+    "functionCall": {
+      "name": "get_quote",
+      "parameters": {
+        "pickup_address": "Manchester Piccadilly, M1 1RG",
+        "dropoff_address": "Leeds City Centre, LS1 1BA",
+        "weight_kg": 500,
+        "date": "2026-09-15",
+        "time": "14:30"
+      }
+    }
+  }
+}
+
+
+### Vapi quote — messy spoken input (relative date, worded time, "kg" suffix)
+POST {{host}}/vapi/quote
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "tool-calls",
+    "call": { "id": "test_call_3" },
+    "toolCalls": [
+      {
+        "id": "tool_1",
+        "function": {
+          "name": "get_quote",
+          "arguments": {
+            "pickup": "Leeds City Centre",
+            "dropoff": "York Railway Station",
+            "weight": "about 450 kg",
+            "date": "tomorrow",
+            "time": "half past two"
+          }
+        }
+      }
+    ]
+  }
+}
+
+
+### Vapi quote — OVER 790 kg. Expect action "transfer", and NO price.
+POST {{host}}/vapi/quote
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "tool-calls",
+    "call": { "id": "test_call_4" },
+    "toolCalls": [
+      {
+        "id": "tool_1",
+        "function": {
+          "name": "get_quote",
+          "arguments": {
+            "pickup_address": "Birmingham New Street, B2 4QA",
+            "dropoff_address": "Bristol Temple Meads, BS1 6QF",
+            "weight_kg": 1200,
+            "date": "2026-09-15",
+            "time": "09:00"
+          }
+        }
+      }
+    ]
+  }
+}
+
+
+### Vapi quote — missing weight. Expect a follow-up question, not an error.
+POST {{host}}/vapi/quote
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "tool-calls",
+    "toolCalls": [
+      {
+        "id": "tool_1",
+        "function": {
+          "name": "get_quote",
+          "arguments": {
+            "pickup_address": "London Bridge",
+            "dropoff_address": "Croydon"
+          }
+        }
+      }
+    ]
+  }
+}
+
+
+### Vapi transfer — caller asked for a human
+POST {{host}}/vapi/transfer
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "tool-calls",
+    "call": { "id": "test_call_5", "customer": { "number": "+447700900123" } },
+    "toolCalls": [
+      {
+        "id": "tool_1",
+        "function": {
+          "name": "transfer_to_human",
+          "arguments": { "reason": "human_requested" }
+        }
+      }
+    ]
+  }
+}
+
+
+### Vapi end-of-call — successful booking. Expect call_status booking_accepted.
+POST {{host}}/vapi/end-of-call
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "end-of-call-report",
+    "call": { "id": "test_call_6", "customer": { "number": "+447700900123" } },
+    "endedReason": "customer-ended-call",
+    "durationSeconds": 142.5,
+    "summary": "Caller accepted the quote and the booking was confirmed.",
+    "transcript": "AI: ... User: yes please book it in",
+    "analysis": {
+      "structuredData": {
+        "caller_name": "Sarah Jones",
+        "caller_phone": "07700900123",
+        "caller_email": "sarah@example.com",
+        "pickup_address": "1 Oxford Street, London, W1D 1BS",
+        "dropoff_address": "Canary Wharf, London, E14 5AB",
+        "weight_kg": 350,
+        "date": "2026-09-15",
+        "time": "10:00",
+        "quote_gbp": 38.58,
+        "distance_miles": 9.43,
+        "booking_accepted": true
+      }
+    }
+  }
+}
+
+
+### Vapi end-of-call — caller hung up without booking. Expect no_booking.
+POST {{host}}/vapi/end-of-call
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "end-of-call-report",
+    "call": { "id": "test_call_7" },
+    "endedReason": "customer-ended-call",
+    "durationSeconds": 18.2,
+    "summary": "Caller was only enquiring about prices."
+  }
+}
+
+
+### Master webhook — routes by message.type. This one is a quote.
+POST {{host}}/vapi/webhook
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "tool-calls",
+    "call": { "id": "test_call_8" },
+    "toolCalls": [
+      {
+        "id": "tool_1",
+        "function": {
+          "name": "get_quote",
+          "arguments": {
+            "pickup_address": "1 Oxford Street, London",
+            "dropoff_address": "Canary Wharf, London",
+            "weight_kg": 200,
+            "date": "2026-09-15",
+            "time": "10:00"
+          }
+        }
+      }
+    ]
+  }
+}
+
+
+### Master webhook — status update. Should just acknowledge with 200.
+POST {{host}}/vapi/webhook
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "status-update",
+    "status": "in-progress",
+    "call": { "id": "test_call_9" }
+  }
+}
+
+
+### Master webhook — Vapi asking where to transfer the call
+POST {{host}}/vapi/webhook
+Content-Type: application/json
+
+{
+  "message": {
+    "type": "transfer-destination-request",
+    "call": { "id": "test_call_10" }
+  }
+}
+
+
+### Master webhook WITH the shared secret
+# Only needed once you set VAPI_SERVER_SECRET in .env.
+POST {{host}}/vapi/webhook
+Content-Type: application/json
+x-vapi-secret: replace_with_your_VAPI_SERVER_SECRET
+
+{
+  "message": { "type": "status-update", "status": "ended", "call": { "id": "t11" } }
+}
+
+
+###############################################################################
+#  PHASE 3 — bookings
+###############################################################################
+
+### Is a slot free?
+POST {{host}}/booking/check-availability
+Content-Type: application/json
+
+{
+  "date": "2026-09-15",
+  "time": "10:00"
+}
+
+
+### Create a booking
+# CAREFUL: this really does send SMS/email and create a calendar entry
+# once those integrations are configured. Copy the "reference" from the
+# response into the @reference variable at the top of this file.
+POST {{host}}/booking/create
+Content-Type: application/json
+
+{
+  "caller_name": "Sarah Jones",
+  "caller_phone": "07700900123",
+  "caller_email": "sarah@example.com",
+  "pickup_address": "1 Oxford Street, London, W1D 1BS",
+  "dropoff_address": "Canary Wharf, London, E14 5AB",
+  "weight_kg": 350,
+  "date": "2026-09-15",
+  "time": "10:00",
+  "quote_gbp": 38.58,
+  "distance_miles": 9.43,
+  "call_id": "test_call_6",
+  "notes": "Ring the buzzer for reception"
+}
+
+
+### Create a booking OVER capacity — expect 400, nothing is booked
+POST {{host}}/booking/create
+Content-Type: application/json
+
+{
+  "caller_name": "Heavy Load Ltd",
+  "caller_phone": "07700900999",
+  "caller_email": "ops@example.com",
+  "pickup_address": "Birmingham",
+  "dropoff_address": "Bristol",
+  "weight_kg": 900,
+  "date": "2026-09-15",
+  "time": "09:00",
+  "quote_gbp": 150
+}
+
+
+### Look a booking up by reference
+GET {{host}}/booking/{{reference}}
+
+
+### Malformed reference — expect 400
+GET {{host}}/booking/NOTAREF
+
+
+### Unknown reference — expect 404
+GET {{host}}/booking/CRR-20260915-QQQQ
+
+
+### Failure alert (what n8n calls when a booking could not be completed)
+POST {{host}}/booking/alert-failure
+Content-Type: application/json
+
+{
+  "reason": "Cal.com returned a 500",
+  "details": {
+    "caller_name": "Sarah Jones",
+    "caller_phone": "07700900123",
+    "pickup": "1 Oxford Street, London",
+    "dropoff": "Canary Wharf, London"
+  }
+}
+
+
+###############################################################################
+#  PHASE 4 — admin
+###############################################################################
+
+### Last 50 bookings as JSON
+GET {{host}}/admin/bookings
+
+
+### Last 10 bookings
+GET {{host}}/admin/bookings?limit=10
+
+
+### The dashboard (open this one in a browser instead: http://localhost:8000/admin)
+GET {{host}}/admin
+
+
+###############################################################################
+#  n8n workflows (only once you have imported and ACTIVATED them)
+###############################################################################
+
+### Quote via the n8n workflow
+POST http://localhost:5678/webhook/n8n/quote
+Content-Type: application/json
+
+{
+  "pickup_address": "1 Oxford Street, London, W1D 1BS",
+  "dropoff_address": "Canary Wharf, London, E14 5AB",
+  "weight_kg": 350,
+  "date": "2026-09-15",
+  "time": "10:00"
+}
+
+
+### Booking via the n8n workflow
+POST http://localhost:5678/webhook/n8n/booking-complete
+Content-Type: application/json
+
+{
+  "call_id": "test_call_6",
+  "call_status": "booking_accepted",
+  "booking_data": {
+    "caller_name": "Sarah Jones",
+    "caller_phone": "07700900123",
+    "caller_email": "sarah@example.com",
+    "pickup_address": "1 Oxford Street, London, W1D 1BS",
+    "dropoff_address": "Canary Wharf, London, E14 5AB",
+    "weight_kg": 350,
+    "date": "2026-09-15",
+    "time": "10:00",
+    "quote_gbp": 38.58,
+    "distance_miles": 9.43
+  }
+}
