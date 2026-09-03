@@ -1318,16 +1318,21 @@ _WIDGET_HTML = """<!doctype html>
 
 @app.get("/admin/bookings")
 async def admin_bookings(limit: int = 50) -> dict:
-    """The last N bookings as JSON. Backs the admin dashboard."""
+    """The last N bookings as JSON. Backs the admin dashboard.
+
+    "source" reflects the actual path THIS call took, not just whether Sheets
+    is configured - see the docstring on sheets.list_bookings() for why that
+    distinction matters.
+    """
     limit = max(1, min(limit, 500))
-    records = await sheets.list_bookings(limit=limit)
+    records, source = await sheets.list_bookings(limit=limit)
     today = utils.london_now().date().isoformat()
     return {
         "ok": True,
         "count": len(records),
         "today": today,
         "today_count": sum(1 for r in records if str(r.get("service_date", "")) == today),
-        "source": "google_sheets" if config.SHEETS_ENABLED else "local_log",
+        "source": source,
         "bookings": records,
     }
 

@@ -280,6 +280,29 @@ def test_admin_bookings_respects_limit(client):
     assert client.get("/admin/bookings?limit=3").json()["count"] == 3
 
 
+def test_admin_bookings_source_reflects_what_actually_happened(client, monkeypatch):
+    """"source" must describe the path THIS call took, not just whether
+    Sheets is configured.
+
+    Caught in production: Sheets was fully configured, but a call landed
+    while the sheet had fewer than 2 rows in it (recently cleared of test
+    data), so list_bookings() correctly fell back to the local file - and the
+    endpoint still reported "google_sheets", because it was reading a static
+    config flag instead of what list_bookings() actually returned.
+    """
+    from api import config
+    from api.services import sheets
+
+    async def fell_back_to_local(limit: int = 50):
+        return [{"reference": "CRR-LOCAL-ONLY"}], "local_log"
+
+    monkeypatch.setattr(config, "SHEETS_ENABLED", True)   # configured...
+    monkeypatch.setattr(sheets, "list_bookings", fell_back_to_local)  # ...but this call fell back
+
+    body = client.get("/admin/bookings").json()
+    assert body["source"] == "local_log"
+
+
 def test_admin_dashboard_renders(client):
     response = client.get("/admin")
     assert response.status_code == 200

@@ -171,18 +171,25 @@ async def append_booking(record: dict[str, Any]) -> dict:
 
 # ── Read ──────────────────────────────────────────────────────────────────────
 
-async def list_bookings(limit: int = 50) -> list[dict[str, Any]]:
-    """Return the most recent bookings, newest first.
+async def list_bookings(limit: int = 50) -> tuple[list[dict[str, Any]], str]:
+    """Return the most recent bookings, newest first, and where they came from.
 
     Falls back to the local JSONL mirror whenever Sheets is unavailable, so the
-    admin dashboard always shows something useful.
+    admin dashboard always shows something useful. The source string is the
+    ACTUAL path this call took ("google_sheets" or "local_log") - not simply
+    whether Sheets is configured. Those can differ: Sheets can be fully
+    configured and still be the wrong answer for one particular call, e.g. the
+    sheet momentarily has no data rows in it. A caller that reports
+    "google_sheets" just because config.SHEETS_ENABLED is true, while actually
+    showing locally-cached data, is telling the person reading the admin
+    dashboard something false about where the numbers came from.
     """
     if not config.SHEETS_ENABLED:
-        return await asyncio.to_thread(_read_local, limit)
+        return await asyncio.to_thread(_read_local, limit), "local_log"
 
     token = await _get_token()
     if not token:
-        return await asyncio.to_thread(_read_local, limit)
+        return await asyncio.to_thread(_read_local, limit), "local_log"
 
     url = f"{_API_ROOT}/{config.GOOGLE_SHEETS_ID}/values/{config.GOOGLE_SHEETS_TAB}!A:P"
     try:
@@ -190,11 +197,11 @@ async def list_bookings(limit: int = 50) -> list[dict[str, Any]]:
             resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
         if resp.status_code >= 400:
             log.error("Sheets read failed (%s): %s", resp.status_code, _error_detail(resp))
-            return await asyncio.to_thread(_read_local, limit)
+            return await asyncio.to_thread(_read_local, limit), "local_log"
 
         values = resp.json().get("values", [])
         if len(values) < 2:  # header row only, or empty sheet
-            return await asyncio.to_thread(_read_local, limit)
+            return await asyncio.to_thread(_read_local, limit), "local_log"
 
         header = [str(cell).strip() for cell in values[0]]
         rows = []
@@ -203,11 +210,11 @@ async def list_bookings(limit: int = 50) -> list[dict[str, Any]]:
             rows.append(dict(zip(header, padded)))
 
         rows.reverse()  # newest first
-        return rows[:limit]
+        return rows[:limit], "google_sheets"
 
     except httpx.HTTPError as exc:
         log.error("Sheets read network error: %s", exc)
-        return await asyncio.to_thread(_read_local, limit)
+        return await asyncio.to_thread(_read_local, limit), "local_log"
 
 
 async def find_booking(reference: str) -> dict[str, Any] | None:
@@ -217,7 +224,8 @@ async def find_booking(reference: str) -> dict[str, Any] | None:
         return None
 
     # Search a generous window so older references are still findable.
-    for record in await list_bookings(limit=500):
+    records, _source = await list_bookings(limit=500)
+    for record in records:
         if str(record.get("reference", "")).strip().upper() == target:
             return record
     return None

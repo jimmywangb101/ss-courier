@@ -72,8 +72,8 @@ def no_external_calls(monkeypatch, tmp_path):
         calls["sheet"].append(record)
         return {"ok": True, "updated_range": "Bookings!A2:P2", "local": True}
 
-    async def fake_list_bookings(limit: int = 50) -> list[dict]:
-        return list(reversed(calls["sheet"]))[:limit]
+    async def fake_list_bookings(limit: int = 50) -> tuple[list[dict], str]:
+        return list(reversed(calls["sheet"]))[:limit], "google_sheets"
 
     async def fake_transfer_call(call_sid: str, to_number=None, whisper=None) -> dict:
         calls.setdefault("transfer", []).append({"call_sid": call_sid, "to": to_number})
