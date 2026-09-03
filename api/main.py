@@ -5,7 +5,7 @@ WHAT LIVES HERE
 ---------------
   Phase 1  /health, /quote                      pricing engine (unchanged)
   Phase 2  /vapi/*                              webhooks Vapi calls during a call
-  Phase 3  /booking/*                           what n8n calls to complete a booking
+  Phase 3  /booking/*                           calendar, sheet, SMS, email - completes a booking
   Phase 4  /admin, /admin/bookings              simple operations dashboard
 
 THE GOLDEN RULE OF THIS FILE
@@ -201,8 +201,8 @@ def health() -> dict:
 
 # ── Rate limiting for /quote ────────────────────────────────────────────────
 #
-# /quote was originally only ever called by n8n and internally by /vapi/quote
-# - trusted, low-volume callers. The website widget (below) changes that: this
+# /quote was originally only ever called internally by /vapi/quote - a
+# trusted, low-volume caller. The website widget (below) changes that: this
 # endpoint is now linked from a public page, reachable by anyone, including
 # bots. Each call spends real money on the Google Maps API, so an unthrottled
 # endpoint is a way for a stranger to run up the client's bill.
@@ -244,8 +244,8 @@ async def _enforce_quote_rate_limit(request: Request) -> None:
 
 @app.post("/quote", response_model=QuoteResponse, dependencies=[Depends(_enforce_quote_rate_limit)])
 async def get_quote(req: QuoteRequest) -> QuoteResponse:
-    """Price a job. Used by n8n, internally by /vapi/quote, and by the public
-    website widget at /widget/quote - rate limited above accordingly."""
+    """Price a job. Used internally by /vapi/quote and by the public website
+    widget at /widget/quote - rate limited above accordingly."""
     if req.weight_kg <= 0:
         return QuoteResponse(
             action="error",
@@ -588,12 +588,14 @@ async def vapi_transfer(request: Request) -> dict:
 
 @app.post("/vapi/end-of-call")
 async def vapi_end_of_call(request: Request) -> dict:
-    """Record the finished call and extract any booking data it captured.
+    """Record the finished call, and complete the booking if one was accepted.
 
     Vapi posts the full transcript, the summary and (if you configured a
     structured-data schema on the assistant) a parsed object of the fields the
-    AI collected. We write all of it to logs/calls.jsonl, then hand the tidy
-    booking payload back — that is what n8n forwards to /booking/create.
+    AI collected. We write all of it to logs/calls.jsonl, then — if the caller
+    accepted a quote — create the booking right here, in-process. See
+    _auto_create_booking() below for why this lives here rather than being
+    handed off to a separate automation tool.
     """
     body = await _safe_json(request)
     message = body.get("message", body) or {}
@@ -606,9 +608,19 @@ async def vapi_end_of_call(request: Request) -> dict:
 
     booking = _booking_from_structured(structured, body)
     accepted = _looks_accepted(structured, summary, transcript)
+    call_id = call.get("id") or _call_id(body)
+
+    # This is the step that actually completes the job: calendar, spreadsheet,
+    # SMS, both emails — see BookingRequest/create_booking() below. Only runs
+    # when the caller genuinely accepted (never on a declined or abandoned
+    # call), and degrades to an email alert rather than a crash if the data
+    # Vapi gave us turns out to be unusable.
+    booking_outcome: dict[str, Any] = {"ok": False, "attempted": False}
+    if accepted:
+        booking_outcome = await _auto_create_booking(booking, call_id)
 
     record = {
-        "call_id": call.get("id") or _call_id(body),
+        "call_id": call_id,
         "ended_reason": message.get("endedReason") or "",
         "started_at": message.get("startedAt") or call.get("startedAt") or "",
         "ended_at": message.get("endedAt") or call.get("endedAt") or "",
@@ -620,20 +632,80 @@ async def vapi_end_of_call(request: Request) -> dict:
         "structured_data": structured,
         "booking_accepted": accepted,
         "booking_data": booking,
+        "booking_outcome": booking_outcome,
         "recording_url": message.get("recordingUrl") or message.get("stereoRecordingUrl") or "",
     }
     await log_event(config.CALLS_LOG, record)
-    log.info("Call %s ended (%s) - accepted=%s",
-             record["call_id"], record["ended_reason"], accepted)
+    log.info("Call %s ended (%s) - accepted=%s - booking=%s",
+             call_id, record["ended_reason"], accepted, booking_outcome.get("ok"))
 
-    # n8n reads call_status to decide whether to create the booking.
     return {
         "ok": True,
-        "call_id": record["call_id"],
+        "call_id": call_id,
         "call_status": "booking_accepted" if accepted else "no_booking",
         "duration_seconds": record["duration_seconds"],
         "booking_data": booking,
+        "booking_outcome": booking_outcome,
     }
+
+
+def _booking_data_problem(booking: dict) -> str | None:
+    """None if `booking` has enough real data to create automatically,
+    otherwise a short human-readable reason it does not."""
+    if not booking.get("pickup_address"):
+        return "no pickup address was captured"
+    if not booking.get("dropoff_address"):
+        return "no dropoff address was captured"
+    if not booking.get("weight_kg") or booking["weight_kg"] <= 0:
+        return "no valid load weight was captured"
+    if not booking.get("quote_gbp") or booking["quote_gbp"] <= 0:
+        return "no price was captured - get_quote may never have actually run"
+    return None
+
+
+async def _auto_create_booking(booking: dict, call_id: str) -> dict:
+    """Turn an accepted call straight into a real booking.
+
+    THIS REPLACES WHAT N8N USED TO DO. The original design had Vapi's
+    end-of-call event go to n8n, which checked call_status and then POSTed to
+    /booking/create over HTTP. Running that same logic here instead — a direct
+    in-process function call rather than a webhook round-trip to a separate
+    tool — removes a moving part (one less service to keep running, one less
+    place a mistyped URL or expired credential can silently break the chain)
+    with no loss of capability: /booking/create, /booking/alert-failure and
+    every other endpoint below are unchanged and still callable directly by
+    n8n, curl, or anything else, if you ever want to reintroduce it.
+
+    NEVER RAISES. This runs inside the webhook Vapi is waiting on; a booking
+    that cannot be created safely degrades to an email alert instead of
+    crashing the response Vapi gets back.
+    """
+    problem = _booking_data_problem(booking)
+    if problem:
+        log.error("Call %s: caller accepted but not bookable - %s", call_id, problem)
+        await alert_failure(AlertRequest(
+            reason=f"Call ended with the quote accepted, but {problem}.",
+            details={**booking, "call_id": call_id},
+        ))
+        return {"ok": False, "attempted": True, "error": problem}
+
+    try:
+        response = await create_booking(BookingRequest(**booking, call_id=call_id))
+        return {"ok": True, "attempted": True, "reference": response.reference}
+    except HTTPException as exc:
+        log.error("Call %s: booking rejected - %s", call_id, exc.detail)
+        await alert_failure(AlertRequest(
+            reason=f"Booking could not be created: {exc.detail}",
+            details={**booking, "call_id": call_id},
+        ))
+        return {"ok": False, "attempted": True, "error": str(exc.detail)}
+    except Exception as exc:  # noqa: BLE001 - must never break the reply to Vapi
+        log.exception("Call %s: booking creation failed unexpectedly", call_id)
+        await alert_failure(AlertRequest(
+            reason=f"Unexpected error creating the booking: {exc}",
+            details={**booking, "call_id": call_id},
+        ))
+        return {"ok": False, "attempted": True, "error": str(exc)}
 
 
 def _booking_from_structured(structured: dict, body: dict) -> dict:
@@ -804,7 +876,10 @@ def _replay(request: Request, body: dict) -> Any:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PHASE 3 — Booking endpoints (called by n8n)
+#  PHASE 3 — Booking endpoints
+#  Called automatically by _auto_create_booking() above the moment a caller
+#  accepts a quote. Every endpoint below also stays independently callable -
+#  by curl, a support tool, or anything else - it just isn't n8n specifically.
 # ══════════════════════════════════════════════════════════════════════════════
 
 class BookingRequest(BaseModel):
@@ -978,9 +1053,10 @@ class AlertRequest(BaseModel):
 async def alert_failure(req: AlertRequest) -> dict:
     """Email the client when a booking could not be completed automatically.
 
-    n8n calls this on its failure branch. Putting the email here — rather than
-    configuring an SMTP node inside n8n — means your mail password lives in ONE
-    place (.env) instead of two, and n8n needs no credentials at all.
+    Called from _auto_create_booking() when a call ends accepted but the
+    booking cannot actually be created - bad data, a rejected weight, an
+    unexpected error. A human then has everything they need to rescue it by
+    hand, rather than the booking silently vanishing.
     """
     subject, text, html = email_sender.build_failure_alert(
         reason=req.reason, payload=req.details
@@ -1242,7 +1318,7 @@ _WIDGET_HTML = """<!doctype html>
 
 @app.get("/admin/bookings")
 async def admin_bookings(limit: int = 50) -> dict:
-    """The last N bookings as JSON. Backs the dashboard and is handy for n8n."""
+    """The last N bookings as JSON. Backs the admin dashboard."""
     limit = max(1, min(limit, 500))
     records = await sheets.list_bookings(limit=limit)
     today = utils.london_now().date().isoformat()

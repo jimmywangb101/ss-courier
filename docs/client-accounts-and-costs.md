@@ -96,7 +96,6 @@ Replace `[Client name]`, `[Your name]` and `[your email]` before sending.
 | Cal.com | Client | Free tier likely | Only needs the event type ID to work |
 | Google Sheets | Client | Free | Share with the service-account email |
 | Gmail SMTP | Client | Free | Needs an App Password, not the normal password |
-| n8n | Self-hosted | Free | No cost while it runs on your machine or their server |
 | Hosting / ngrok | Client | Client card | Replaces the ngrok URL that changes on every restart |
 
 ### Points worth raising on the call

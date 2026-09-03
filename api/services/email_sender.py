@@ -196,7 +196,9 @@ Price       : GBP {quote_gbp:.2f}
 
 def build_failure_alert(*, reason: str, payload: dict) -> tuple[str, str, str]:
     """Alert sent to the client when a booking could NOT be completed, so a
-    human can rescue it. n8n calls this on its failure branch."""
+    human can rescue it. Called from api/main.py's _auto_create_booking()
+    when a call ends with the quote accepted but the booking cannot actually
+    be created."""
     subject = "ACTION NEEDED - booking could not be completed automatically"
     lines = "\n".join(f"{key:<16}: {value}" for key, value in payload.items())
 

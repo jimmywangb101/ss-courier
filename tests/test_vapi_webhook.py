@@ -16,6 +16,7 @@ from __future__ import annotations
 import pytest
 
 from conftest import legacy_call_payload, tool_call_payload
+from api.services import booking_ref
 
 QUOTE_ARGS = {
     "pickup_address": "1 Oxford Street, London, W1D 1BS",
@@ -292,6 +293,82 @@ def test_duration_computed_from_timestamps(client):
         }
     }).json()
     assert body["duration_seconds"] == 210.0
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Automatic booking creation at end-of-call
+#
+#  This is what used to be n8n's job: check the call was accepted, and if so
+#  create the booking. It now happens in-process inside /vapi/end-of-call
+#  itself (see _auto_create_booking() in api/main.py) - one call ending
+#  should produce exactly one booking, with no separate trigger needed.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_accepted_call_creates_a_real_booking(client, no_external_calls):
+    """The single most important behaviour of this whole feature: a call
+    that ends accepted, with full data, results in an actual booking -
+    calendar, sheet, SMS and both emails - with no separate step required."""
+    body = client.post("/vapi/end-of-call", json=end_of_call_payload(True)).json()
+
+    outcome = body["booking_outcome"]
+    assert outcome["ok"] is True
+    assert outcome["attempted"] is True
+    assert booking_ref.is_valid_reference(outcome["reference"])
+
+    # And the integrations were genuinely called, not just reported as ok.
+    assert len(no_external_calls["calendar"]) == 1
+    assert len(no_external_calls["sheet"]) == 1
+    assert len(no_external_calls["sms"]) == 1
+    assert len(no_external_calls["email"]) == 2
+
+
+def test_declined_call_never_attempts_a_booking(client, no_external_calls):
+    """The caller saying no must not create anything, ever."""
+    body = client.post("/vapi/end-of-call", json=end_of_call_payload(False)).json()
+
+    outcome = body["booking_outcome"]
+    assert outcome["attempted"] is False
+    assert no_external_calls["calendar"] == []
+    assert no_external_calls["sheet"] == []
+
+
+@pytest.mark.parametrize("missing_field,bad_value", [
+    ("pickup_address", ""),
+    ("dropoff_address", ""),
+    ("weight_kg", 0),
+    ("quote_gbp", 0),
+])
+def test_accepted_but_incomplete_data_alerts_instead_of_booking(
+    client, no_external_calls, missing_field, bad_value
+):
+    """The AI can mark booking_accepted=True on data that isn't actually
+    usable - a field it failed to capture, or a quote of zero suggesting
+    get_quote never really ran. That must never silently create a broken
+    booking; it must alert the client so a human can follow up by hand."""
+    payload = end_of_call_payload(True, **{missing_field: bad_value})
+    body = client.post("/vapi/end-of-call", json=payload).json()
+
+    outcome = body["booking_outcome"]
+    assert outcome["ok"] is False
+    assert outcome["attempted"] is True
+    assert no_external_calls["calendar"] == []          # nothing was booked
+
+    # The client was told, by email, so nothing goes missing silently.
+    alerts = [e for e in no_external_calls["email"] if "ACTION NEEDED" in e["subject"]]
+    assert len(alerts) == 1
+
+
+def test_over_capacity_never_reaches_auto_booking(client, no_external_calls):
+    """Belt and braces: even if somehow marked accepted, a >790kg job must
+    never be auto-booked. In practice /vapi/quote already blocks this earlier
+    in the call, but create_booking() itself also enforces the limit."""
+    payload = end_of_call_payload(True, weight_kg=900)
+    body = client.post("/vapi/end-of-call", json=payload).json()
+
+    outcome = body["booking_outcome"]
+    assert outcome["ok"] is False
+    assert "790" in outcome["error"] or "exceeds" in outcome["error"]
+    assert no_external_calls["calendar"] == []
 
 
 # ══════════════════════════════════════════════════════════════════════════════

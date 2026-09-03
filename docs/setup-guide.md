@@ -255,7 +255,7 @@ visitor for them. It shows the price and a **Call to book** button using
 way to act on it).
 
 **Because this makes `/quote` reachable by anyone on the internet** — not just
-Vapi and n8n as before — it's rate-limited to 30 requests/minute per visitor.
+Vapi as before — it's rate-limited to 30 requests/minute per visitor.
 That's generous for a real customer adjusting their weight a few times, tight
 enough to stop a bot loop running up the Google Maps bill.
 
@@ -408,23 +408,23 @@ Phone Numbers → buy one or import your Twilio number → assign this assistant
 
 ---
 
-## 8. n8n workflows
+## 8. Nothing to do here — booking creation is automatic
 
-1. Start n8n (`npx n8n`, or Docker), open <http://localhost:5678>.
-2. **Workflows → Import from File** → `n8n-exports/booking-workflow.json`.
-3. Repeat for `n8n-exports/quote-workflow.json`.
-4. **Activate** both (toggle, top right). Webhooks do not fire while inactive.
+Earlier drafts of this project used n8n as a separate automation layer
+sitting between Vapi and the booking logic: Vapi's end-of-call event would
+reach n8n, which checked whether the caller had accepted, then called
+`/booking/create`.
 
-> **If n8n runs in Docker**, `localhost` means *the container*, not your PC.
-> Open each HTTP Request node and change `http://localhost:8000` to
-> `http://host.docker.internal:8000`. This is the single most common reason the
-> workflow "does nothing".
+That extra hop has been removed. `/vapi/end-of-call` now does that check and
+creates the booking itself, in the same process, the moment the call ends —
+see `_auto_create_booking()` in `api/main.py`. One fewer service to run, one
+fewer thing that can silently stop working, and nothing left to configure or
+activate here.
 
-The workflows need **no credentials** — the failure-alert email is sent by
-FastAPI using your `.env` settings, so your mail password lives in one place.
-
-**Test it:** send the "Booking via the n8n workflow" request at the bottom of
-`tests/test_quote.http`. You should get a booking reference back.
+Every endpoint that logic uses (`/booking/create`, `/booking/check-availability`,
+`/booking/alert-failure`, and so on) is still there and still callable
+directly — by `curl`, an admin tool, or n8n again later if you ever want it —
+it just is not required for a call to complete.
 
 ---
 
@@ -511,7 +511,7 @@ Remove-Item logs\bookings.jsonl
 | `check-availability` always `"assumed": true` | Cal.com not configured or unreachable | Section 4 |
 | Vapi webhook returns 401 | Secret mismatch | Section 7.1 |
 | Vapi calls do nothing | ngrok URL changed after restart | Section 6 |
-| n8n workflow does nothing | Not activated, or Docker `localhost` | Section 8 |
+| A call ends but no booking appears | Check the `booking_outcome` field in the `/vapi/end-of-call` response, or the latest line of `logs/calls.jsonl` — it names the exact reason | Section 8 |
 | `ZoneInfoNotFoundError` | `tzdata` missing on Windows | `pip install tzdata` |
 
 To see exactly what Vapi sent you, read the newest line of the call log:

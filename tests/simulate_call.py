@@ -5,13 +5,17 @@ WHAT IT DOES
 ------------
 Plays out a whole booking exactly as Vapi would drive it:
 
-    1. /health                    is the API up, and what is configured?
-    2. /vapi/quote                the AI has the 5 details -> speak a price
-    3. /vapi/quote (1200 kg)      over capacity -> hand to a human
+    1. /health                     is the API up, and what is configured?
+    2. /vapi/quote                 the AI has the 5 details -> speak a price
+    3. /vapi/quote (1200 kg)       over capacity -> hand to a human
     4. /booking/check-availability is that slot free?
-    5. /vapi/end-of-call          the call ends, booking data is extracted
-    6. /booking/create            calendar + sheet + SMS + emails
-    7. /booking/{reference}       read the booking back
+    5. /vapi/end-of-call           the call ends AND, since the caller
+                                    accepted, the booking is created right
+                                    here - calendar, sheet, SMS, both emails.
+                                    This is the same in-process step a real
+                                    call triggers; there is no separate
+                                    "create the booking" call to make.
+    6. /booking/{reference}        read the booking back
 
 Unlike the pytest files, this talks to a REAL server, so it is the closest
 thing to a live call without picking up the phone. Use it as the demo for the
@@ -25,11 +29,15 @@ USAGE
     # terminal 2
     ./venv/Scripts/python.exe tests/simulate_call.py
     ./venv/Scripts/python.exe tests/simulate_call.py --url https://your.ngrok.dev
-    ./venv/Scripts/python.exe tests/simulate_call.py --no-booking   # skip step 6
+    ./venv/Scripts/python.exe tests/simulate_call.py --no-booking   # see below
 
-WARNING: step 6 is real. If Twilio, Cal.com and SMTP are configured it WILL
-send a text, create a calendar entry and email people. Use --no-booking or a
-test phone/email while you are experimenting.
+WARNING: step 5 is real. If Twilio, Cal.com and SMTP are configured it WILL
+send a text, create a calendar entry and email people, the moment the
+end-of-call event is sent — booking creation is no longer a step you can
+separately opt out of, since it happens automatically. --no-booking instead
+sends the end-of-call event with booking_accepted set to false, so the
+server behaves exactly as it would for a caller who never said yes, and
+step 5 stops after showing that outcome.
 """
 
 from __future__ import annotations
@@ -100,20 +108,27 @@ def tool_call(name: str, arguments: dict, call_id: str = "sim_call_001") -> dict
     }
 
 
-def end_of_call(quote: float, distance: float, call_id: str = "sim_call_001") -> dict:
-    """The end-of-call-report Vapi sends once the caller hangs up."""
+def end_of_call(quote: float, distance: float, call_id: str = "sim_call_001",
+                accepted: bool = True) -> dict:
+    """The end-of-call-report Vapi sends once the caller hangs up.
+
+    accepted=False reproduces a call where the caller never said yes - the
+    server will not attempt to create a booking, matching --no-booking.
+    """
     return {
         "message": {
             "type": "end-of-call-report",
             "call": {"id": call_id, "customer": {"number": "+447700900123"}},
             "endedReason": "customer-ended-call",
             "durationSeconds": 138.4,
-            "summary": "Caller booked a same-day delivery and accepted the quote.",
+            "summary": ("Caller booked a same-day delivery and accepted the quote."
+                       if accepted else "Caller enquired about pricing only."),
             "transcript": (
                 "AI: Good afternoon, how can I help?\n"
                 "User: I need a delivery from Oxford Street to Canary Wharf.\n"
                 "AI: ... the price would be ...\n"
-                "User: Yes, that's fine, please book it in."
+                + ("User: Yes, that's fine, please book it in." if accepted
+                   else "User: Thanks, I'll think about it and call back.")
             ),
             "analysis": {
                 "structuredData": {
@@ -127,7 +142,7 @@ def end_of_call(quote: float, distance: float, call_id: str = "sim_call_001") ->
                     "time": JOB["time"],
                     "quote_gbp": quote,
                     "distance_miles": distance,
-                    "booking_accepted": True,
+                    "booking_accepted": accepted,
                 }
             },
         }
@@ -140,7 +155,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Simulate a full courier booking call")
     parser.add_argument("--url", default=DEFAULT_URL, help="Base URL of the running API")
     parser.add_argument("--no-booking", action="store_true",
-                        help="Skip step 6 so no real SMS/email/calendar entry is created")
+                        help="Simulate the caller declining, so no real SMS/email/"
+                             "calendar entry is ever created")
     args = parser.parse_args()
 
     base = args.url.rstrip("/")
@@ -199,13 +215,27 @@ def main() -> None:
     detail("assumed (unverified)", availability.get("assumed"))
     detail("next_available", availability.get("next_available"))
 
-    # ── 5. End of call ────────────────────────────────────────────────────────
+    # ── 5. End of call — this is also where the booking gets created ─────────
     step(5, "The caller accepts and hangs up")
-    caller_says("Yes, that's fine, please book it in.")
+    if args.no_booking:
+        caller_says("Thanks, I'll think about it and call back.")
+    else:
+        caller_says("Yes, that's fine, please book it in.")
 
-    report = client.post("/vapi/end-of-call", json=end_of_call(price, distance)).json()
+    report = client.post(
+        "/vapi/end-of-call",
+        json=end_of_call(price, distance, accepted=not args.no_booking),
+    ).json()
     detail("call_status", report.get("call_status"))
     detail("duration_seconds", report.get("duration_seconds"))
+
+    if args.no_booking:
+        if report.get("call_status") != "no_booking":
+            fail(f"Expected no_booking, got {report.get('call_status')}")
+        outcome = report.get("booking_outcome", {})
+        detail("booking attempted", outcome.get("attempted", False))
+        print("\n  --no-booking set: the caller declined, so nothing real was created.")
+        return
 
     if report.get("call_status") != "booking_accepted":
         fail(f"Expected booking_accepted, got {report.get('call_status')}")
@@ -215,34 +245,23 @@ def main() -> None:
     detail("extracted phone", booking_data["caller_phone"])
     detail("extracted date", f"{booking_data['date']} {booking_data['time']}")
 
-    if args.no_booking:
-        print("\n  --no-booking set: stopping before anything real is sent.")
-        return
+    # The booking was created automatically inside /vapi/end-of-call itself -
+    # see api/main.py's _auto_create_booking(). Its outcome is right here in
+    # the same response; there is no separate call left to make.
+    outcome = report.get("booking_outcome", {})
+    if not outcome.get("ok"):
+        fail(f"Booking was not created: {outcome.get('error', 'unknown reason')}")
 
-    # ── 6. Create the booking ─────────────────────────────────────────────────
-    step(6, "Create the booking (this is the part n8n normally triggers)")
-    created = client.post("/booking/create", json={**booking_data, "call_id": "sim_call_001"})
-
-    if created.status_code != 201:
-        fail(f"Booking failed: {created.status_code} {created.text[:300]}")
-
-    result = created.json()
-    reference = result.get("reference")
-
+    reference = outcome.get("reference")
     if not reference:
-        fail("No booking reference was returned")
+        fail("Booking reported ok but no reference was returned")
 
-    agent_says(result.get("message", ""))
     print()
     detail("REFERENCE", reference)
-    print()
-    for name, outcome in result.get("steps", {}).items():
-        mark = "OK  " if outcome.get("ok") else "FAIL"
-        note = "" if outcome.get("ok") else f"  <- {outcome.get('error', 'unknown')}"
-        detail(f"[{mark}] {name}", note.strip() or "done")
+    detail("booking outcome", outcome)
 
-    # ── 7. Read it back ───────────────────────────────────────────────────────
-    step(7, "Look the booking up by its reference")
+    # ── 6. Read it back ────────────────────────────────────────────────────────
+    step(6, "Look the booking up by its reference")
     lookup = client.get(f"/booking/{reference}")
 
     if lookup.status_code != 200:
