@@ -19,7 +19,15 @@ python-dotenv==1.2.3
 # We deliberately do NOT use google-api-python-client: it is synchronous and
 # would block the event loop. We only need google-auth to mint a token, then we
 # talk to the Sheets REST API with httpx.
+#
+# requests IS a real dependency here, not an accident: google-auth supports
+# several HTTP transports (requests / urllib3 / aiohttp) and does not bundle
+# any of them - sheets.py imports google.auth.transport.requests specifically,
+# so this must be installed explicitly or that import fails at runtime. This
+# was missing for a while and only surfaced on a clean install (Render) - it
+# was silently present in the local dev venv from something else, masking it.
 google-auth==2.57.0
+requests==2.34.2
 
 # ── Timezone database ─────────────────────────────────────────────────────────
 # Windows does not ship the IANA timezone data, so ZoneInfo("Europe/London")
