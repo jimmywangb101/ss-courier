@@ -1,0 +1,111 @@
+# render.yaml — Render Blueprint for the courier AI voice agent API.
+#
+# WHAT THIS FILE DOES
+# --------------------
+# Render can read this file and create the service automatically ("New +" >
+# "Blueprint" in the dashboard, pointing at this repo) instead of you clicking
+# through every setting by hand. It also means the deployment config lives in
+# git, reviewable and reproducible, rather than only existing as clicks in a
+# dashboard no one else can see.
+#
+# WHY "starter" AND NOT "free"
+# -----------------------------
+# Render's free web services sleep after ~15 minutes with no traffic, and take
+# 30-60 seconds to wake up. For a phone line, that is fatal: the first caller
+# after a quiet spell (overnight, say - exactly when this service exists to
+# catch calls) would sit in silence while Vapi times out waiting for a
+# response. "starter" (~$7/month) stays awake permanently.
+#
+# WHY frankfurt
+# -------------
+# Closest Render region to the UK, so lower latency for UK callers, and it
+# keeps customer names/addresses/phone numbers stored inside the EU rather
+# than the US - the simpler answer if the client is ever asked where their
+# data lives.
+#
+# WHAT IS DELIBERATELY NOT HERE
+# ------------------------------
+# A persistent disk. logs/*.jsonl (the local booking safety-net) will be wiped
+# on every deploy on Render's ephemeral filesystem. That is fine ONCE Google
+# Sheets is the real system of record - which it now is - because the local
+# file is only ever a fallback, never the primary store. If that assumption
+# ever changes, add a disk block here (~$1/month for 1GB) rather than relying
+# on ephemeral storage for anything that must survive a redeploy.
+
+services:
+  - type: web
+    name: courier-booking-api
+    runtime: python
+    plan: starter
+    region: frankfurt
+    branch: main
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # Pins the exact interpreter so a Render rebuild always matches the
+      # version this was developed and tested against (3.14.6). Render's
+      # current default for new services is already 3.14.3, so this mostly
+      # guards against Render's default silently drifting in the future.
+      - key: PYTHON_VERSION
+        value: 3.14.6
+
+      # ── Secrets: set these in the Render dashboard, NOT here ────────────────
+      # render.yaml is committed to git, so anything typed directly into this
+      # file would be a public leak. Set actual values under the service's
+      # Environment tab instead - Render's "sync: false" just means "I will
+      # supply this value myself in the dashboard, don't ask me for it here".
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: GOOGLE_SHEETS_ID
+        sync: false
+      - key: GOOGLE_SHEETS_TAB
+        value: Bookings
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: CAL_API_KEY
+        sync: false
+      - key: CAL_EVENT_TYPE_ID
+        sync: false
+      - key: VAPI_PRIVATE_KEY
+        sync: false
+      - key: VAPI_SERVER_SECRET
+        sync: false
+      - key: CLIENT_EMAIL
+        sync: false
+      - key: CLIENT_PHONE_NUMBER
+        sync: false
+      - key: CLIENT_NAME
+        value: SS Courier
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: SS Courier Bookings
+      # NGROK_URL: despite the name, this is read as "our public base URL"
+      # everywhere in the code (config.py, scripts/configure_vapi.py) - it was
+      # never renamed after moving off the tunnel. Once deployed, set this to
+      # the address Render assigns the service (shown in the dashboard once
+      # live, looks like https://courier-booking-api.onrender.com), NOT an
+      # ngrok URL. Re-run scripts/configure_vapi.py afterwards so Vapi's
+      # webhook points at Render instead of the old tunnel.
+      - key: NGROK_URL
+        sync: false
+      # GOOGLE_SERVICE_ACCOUNT_JSON: the file itself is not committed to git
+      # (see api/service-account.json in .gitignore). It is uploaded as a
+      # Render "Secret File" instead - see docs/render-deploy.md for the exact
+      # steps. This variable just tells the app where Render put it.
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        value: /etc/secrets/service-account.json

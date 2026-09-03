@@ -124,9 +124,19 @@ STRUCTURED_SCHEMA = {
 }
 
 
+VOICE = {
+    # Azure's British neural voice - proxied through Vapi, no separate Azure
+    # key needed. The assistant's default ("vapi"/"Elliot") is American, which
+    # read oddly on a UK courier line.
+    "provider": "azure",
+    "voiceId": "en-GB-SoniaNeural",
+}
+
+
 def desired_config() -> dict:
     return {
         "firstMessage": FIRST_MESSAGE,
+        "voice": VOICE,
         "model": {
             "provider": "openai",
             "model": "gpt-4.1",
@@ -170,6 +180,10 @@ def report(a: dict) -> bool:
                        == config.VAPI_SERVER_SECRET, "matches .env"),
         "greeting  ": (a.get("firstMessage") == FIRST_MESSAGE,
                        (a.get("firstMessage") or "")[:45]),
+        "voice     ": ((a.get("voice") or {}).get("provider") == VOICE["provider"]
+                       and (a.get("voice") or {}).get("voiceId") == VOICE["voiceId"],
+                       f"{(a.get('voice') or {}).get('provider')}/"
+                       f"{(a.get('voice') or {}).get('voiceId')}"),
         "prompt    ": (prompt.startswith("You are the booking assistant"),
                        prompt[:45].replace("\n", " ")),
         "tools     ": (sorted(tools) == ["get_quote", "transfer_to_human"], tools),
