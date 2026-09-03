@@ -103,7 +103,15 @@ While still on trial you can test by adding your own mobile under
 Set the destination the AI hands callers to:
 
 ```
-CLIENT_PHONE_NUMBER=+447700123456    # the owner's real mobile
+CLIENT_PHONE_NUMBER=+447700123456    # the owner's PRIVATE mobile - only rung
+                                      # mid-call for a human transfer
+CLIENT_PUBLIC_NUMBER=01474557719     # the number CUSTOMERS see and dial -
+                                      # shown on the website widget's call
+                                      # button. Do not confuse the two: the
+                                      # public number is what gets forwarded
+                                      # to the Vapi line by the phone
+                                      # provider; the private one is only
+                                      # reached via an in-call transfer.
 ```
 
 **Test it** (sends a real text, so use your own mobile):
@@ -219,6 +227,40 @@ Copy the `https://` URL into `.env` as `NGROK_URL`.
 > domain is `childless-stride-clunky.ngrok-free.dev`.
 
 **Test it:** open `https://<your-ngrok-url>/health` in a browser.
+
+---
+
+## 6.5. The website quote widget
+
+A small "get an instant quote" box the client can drop into their own site.
+It's a page this server itself serves — the client's site doesn't need to run
+any code, just embed one line:
+
+```html
+<iframe src="https://<this-server>/widget/quote"
+        width="100%" height="480" style="border:0"></iframe>
+```
+
+An `<iframe>` is used deliberately rather than a `<script>` snippet — most
+site builders (Squarespace, some Wix plans) restrict custom JavaScript to
+paid tiers, but accept a plain iframe embed on any plan. It also means the
+widget's calls back to `/quote` are same-origin (the iframe loads from this
+server, not the parent site's domain), so there is no CORS configuration to
+maintain across whatever platform the client's site happens to run on.
+
+The widget asks for pickup, dropoff and weight only — `/quote`'s pricing does
+not use date or time at all, so there's nothing to gain from asking a website
+visitor for them. It shows the price and a **Call to book** button using
+`CLIENT_PUBLIC_NUMBER` (set that in `.env` or the visitor gets a price with no
+way to act on it).
+
+**Because this makes `/quote` reachable by anyone on the internet** — not just
+Vapi and n8n as before — it's rate-limited to 30 requests/minute per visitor.
+That's generous for a real customer adjusting their weight a few times, tight
+enough to stop a bot loop running up the Google Maps bill.
+
+**Test it:** open `https://<your-server>/widget/quote` directly in a browser
+and get a real quote.
 
 ---
 

@@ -22,12 +22,13 @@ import asyncio
 import json
 import logging
 import re
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
@@ -198,9 +199,53 @@ def health() -> dict:
     }
 
 
-@app.post("/quote", response_model=QuoteResponse)
+# ── Rate limiting for /quote ────────────────────────────────────────────────
+#
+# /quote was originally only ever called by n8n and internally by /vapi/quote
+# - trusted, low-volume callers. The website widget (below) changes that: this
+# endpoint is now linked from a public page, reachable by anyone, including
+# bots. Each call spends real money on the Google Maps API, so an unthrottled
+# endpoint is a way for a stranger to run up the client's bill.
+#
+# This is a simple in-memory sliding window - no Redis, no extra
+# infrastructure, appropriate for a single small-business instance. It resets
+# on every restart/deploy, and (documented limitation) would need a shared
+# store if this were ever horizontally scaled to more than one server
+# instance. Neither applies at this scale.
+_QUOTE_RATE_LIMIT = 30          # requests
+_QUOTE_RATE_WINDOW = 60.0       # seconds
+_quote_rate_state: dict[str, list[float]] = {}
+
+
+def _client_ip(request: Request) -> str:
+    """Best-effort real client IP, honouring the proxy header Render (and
+    most hosts) set. request.client.host alone would just be the proxy."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+async def _enforce_quote_rate_limit(request: Request) -> None:
+    ip = _client_ip(request)
+    now = time.monotonic()
+    window_start = now - _QUOTE_RATE_WINDOW
+
+    recent = [t for t in _quote_rate_state.get(ip, []) if t > window_start]
+    if len(recent) >= _QUOTE_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many quote requests from this address. Please wait a moment and try again.",
+        )
+
+    recent.append(now)
+    _quote_rate_state[ip] = recent
+
+
+@app.post("/quote", response_model=QuoteResponse, dependencies=[Depends(_enforce_quote_rate_limit)])
 async def get_quote(req: QuoteRequest) -> QuoteResponse:
-    """Price a job. Used directly by n8n and internally by /vapi/quote."""
+    """Price a job. Used by n8n, internally by /vapi/quote, and by the public
+    website widget at /widget/quote - rate limited above accordingly."""
     if req.weight_kg <= 0:
         return QuoteResponse(
             action="error",
@@ -968,6 +1013,227 @@ async def get_booking(reference: str) -> dict:
         raise HTTPException(status_code=404, detail=f"No booking found for {tidy}")
 
     return {"ok": True, "reference": tidy, "booking": record}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Website widget — instant quote embed
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  HOW A CLIENT EMBEDS THIS
+#  ------------------------
+#  One line on their website, wherever they want the quote box to appear:
+#
+#      <iframe src="https://<this-server>/widget/quote"
+#              width="100%" height="480" style="border:0"></iframe>
+#
+#  WHY AN IFRAME, NOT A JS SNIPPET
+#  --------------------------------
+#  A <script> embed needs the host site to allow custom JavaScript, which many
+#  site builders restrict to paid tiers (Squarespace, some Wix plans). An
+#  <iframe> is accepted almost everywhere with no special plan, and it also
+#  means the widget's fetch() call to /quote is SAME-ORIGIN (the iframe's
+#  origin is this server, not the parent page's) - so no CORS configuration
+#  is needed at all, on any site, regardless of platform.
+
+@app.get("/widget/quote", response_class=HTMLResponse)
+async def quote_widget() -> HTMLResponse:
+    """A small, embeddable instant-quote page for the client's website.
+
+    Deliberately asks for only pickup, dropoff and weight - /quote's pricing
+    does not use date/time at all (only /booking/create and availability do),
+    so there is nothing to gain by asking a website visitor for them here.
+    A quote is not a booking: the call to action is "ring us to book it in",
+    matching how the phone line actually completes a job.
+    """
+    call_number = config.CLIENT_PUBLIC_NUMBER
+    return HTMLResponse(_WIDGET_HTML.replace("__CALL_NUMBER__", json.dumps(call_number)))
+
+
+_WIDGET_HTML = """<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instant courier quote</title>
+<style>
+  :root { --ink:#16233a; --body:#3a4658; --line:#e3e9f2; --bg:#f6f9fd; --blue:#14538f; --blue-d:#0f3f6c; --go:#17694a; --go-bg:#e4f0ea; --warn:#a8570a; --warn-bg:#fcf1e2; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; }
+  body { background:var(--bg); color:var(--body);
+         font:15px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif; padding:16px; }
+  .card { max-width:420px; margin:0 auto; }
+  h1 { font-size:17px; font-weight:700; color:var(--ink); margin:0 0 4px; }
+  .sub { font-size:13px; color:#6b7a8d; margin:0 0 16px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--ink);
+          margin:0 0 4px; }
+  .field { margin-bottom:12px; }
+  input { width:100%; padding:10px 11px; border:1px solid var(--line);
+          border-radius:7px; font-size:14px; font-family:inherit; color:var(--ink);
+          background:#fff; }
+  input:focus { outline:2px solid var(--blue); outline-offset:1px; border-color:var(--blue); }
+  input::placeholder { color:#9aa7b8; }
+  button { width:100%; padding:12px; border:0; border-radius:7px;
+           background:var(--blue); color:#fff; font-size:15px; font-weight:600;
+           font-family:inherit; cursor:pointer; margin-top:4px; }
+  button:hover { background:var(--blue-d); }
+  button:disabled { background:#9fb3c8; cursor:default; }
+  .error { font-size:12.5px; color:#b91c1c; margin-top:6px; min-height:1em; }
+  .result { display:none; margin-top:16px; border-radius:8px; padding:14px 15px; }
+  .result.show { display:block; }
+  .result.quote { background:var(--go-bg); border:1px solid #bfe0cf; }
+  .result.info { background:var(--warn-bg); border:1px solid #f0d5ab; }
+  .price { font-size:26px; font-weight:700; color:var(--ink);
+           font-variant-numeric:tabular-nums; margin:0 0 2px; }
+  .meta { font-size:12.5px; color:#526176; margin:0 0 10px; }
+  .msg { font-size:13.5px; color:var(--ink); margin:0 0 12px; }
+  .call { display:block; text-align:center; padding:10px; border-radius:7px;
+          background:var(--ink); color:#fff; text-decoration:none; font-weight:600;
+          font-size:14px; }
+  .call:hover { background:#223353; }
+  .foot { text-align:center; font-size:11.5px; color:#9aa7b8; margin-top:14px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Get an instant delivery quote</h1>
+  <p class="sub">Same-day courier, 24 hours a day, 7 days a week.</p>
+
+  <form id="quoteForm" novalidate>
+    <div class="field">
+      <label for="pickup">Collection address or postcode</label>
+      <input id="pickup" name="pickup" type="text" autocomplete="off"
+             placeholder="e.g. SW1A 1AA or full address" required>
+    </div>
+    <div class="field">
+      <label for="dropoff">Delivery address or postcode</label>
+      <input id="dropoff" name="dropoff" type="text" autocomplete="off"
+             placeholder="e.g. M1 1AE or full address" required>
+    </div>
+    <div class="field">
+      <label for="weight">Parcel weight (kg)</label>
+      <input id="weight" name="weight" type="number" inputmode="decimal"
+             min="0.1" step="0.1" placeholder="e.g. 25" required>
+    </div>
+    <button type="submit" id="submitBtn">Get instant quote</button>
+    <p class="error" id="errorMsg" role="alert"></p>
+  </form>
+
+  <div class="result" id="result"></div>
+  <p class="foot">Prices include VAT where applicable. Booking is confirmed by phone.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // The client's advertised call-in number, injected by the server. null if
+  // not yet configured - the widget still works, it just omits the call
+  // button rather than showing a broken tel: link.
+  var CALL_NUMBER = __CALL_NUMBER__;
+
+  var form = document.getElementById("quoteForm");
+  var button = document.getElementById("submitBtn");
+  var errorEl = document.getElementById("errorMsg");
+  var resultEl = document.getElementById("result");
+
+  // Escape anything before it goes into innerHTML. Addresses are typed by
+  // the visitor themselves, so this is defence in depth rather than a
+  // response to any specific known input here.
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function callButtonHtml() {
+    if (!CALL_NUMBER) {
+      return '<p class="msg">Call us to book this in.</p>';
+    }
+    var tel = String(CALL_NUMBER).replace(/[^\\d+]/g, "");
+    return '<a class="call" href="tel:' + esc(tel) + '">Call ' + esc(CALL_NUMBER) +
+           ' to book</a>';
+  }
+
+  function showResult(html, kind) {
+    resultEl.className = "result show " + kind;
+    resultEl.innerHTML = html;
+  }
+
+  function hideResult() {
+    resultEl.className = "result";
+    resultEl.innerHTML = "";
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    errorEl.textContent = "";
+    hideResult();
+
+    var pickup = document.getElementById("pickup").value.trim();
+    var dropoff = document.getElementById("dropoff").value.trim();
+    var weight = parseFloat(document.getElementById("weight").value);
+
+    if (!pickup || !dropoff) {
+      errorEl.textContent = "Please fill in both addresses.";
+      return;
+    }
+    if (!weight || weight <= 0) {
+      errorEl.textContent = "Please enter the parcel weight in kilograms.";
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Getting your quote...";
+
+    // Same-origin: this page is served BY the API, so a relative path here
+    // never triggers a cross-origin request, even though the parent page
+    // embedding this iframe is on a completely different domain.
+    fetch("/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pickup_address: pickup,
+        dropoff_address: dropoff,
+        weight_kg: weight
+      })
+    })
+      .then(function (response) {
+        if (response.status === 429) {
+          throw new Error("Please wait a moment before requesting another quote.");
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        if (data.action === "quote") {
+          showResult(
+            '<p class="price">\\u00A3' + Number(data.quote_gbp).toFixed(2) + '</p>' +
+            '<p class="meta">Approximately ' + Number(data.distance_miles).toFixed(1) +
+            ' miles</p>' + callButtonHtml(),
+            "quote"
+          );
+        } else if (data.action === "redirect") {
+          showResult(
+            '<p class="msg">That load is larger than our standard van. ' +
+            'Give us a call and we will sort a vehicle that fits.</p>' + callButtonHtml(),
+            "info"
+          );
+        } else {
+          errorEl.textContent = data.message || "Please check the weight and try again.";
+        }
+      })
+      .catch(function (error) {
+        errorEl.textContent = error.message ||
+          "Sorry, we could not get a quote just now. Please call us instead.";
+      })
+      .finally(function () {
+        button.disabled = false;
+        button.textContent = "Get instant quote";
+      });
+  });
+})();
+</script>
+</body>
+</html>"""
 
 
 # ══════════════════════════════════════════════════════════════════════════════

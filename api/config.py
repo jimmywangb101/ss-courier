@@ -125,8 +125,20 @@ EMAIL_ENABLED = bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
 
 # ── The client (business owner) ───────────────────────────────────────────────
 CLIENT_EMAIL = _env("CLIENT_EMAIL")
-CLIENT_PHONE_NUMBER = _env("CLIENT_PHONE_NUMBER")
 CLIENT_NAME = _env("CLIENT_NAME", "Courier Operations")
+
+# CLIENT_PHONE_NUMBER: where a live call gets TRANSFERRED to (the owner's own
+# mobile, rung mid-call when a human is needed).
+#
+# CLIENT_PUBLIC_NUMBER: the number CUSTOMERS dial in the first place - the one
+# on the van, the website, the letterhead. These are deliberately two separate
+# settings: the client's public line (01474557719) is forwarded to the Vapi
+# assistant by their phone provider, and only over-capacity/human-requested
+# calls get transferred onward to their personal mobile. Using the wrong one
+# in the website widget would show customers a number that rings a private
+# phone, not the business line.
+CLIENT_PHONE_NUMBER = _env("CLIENT_PHONE_NUMBER")
+CLIENT_PUBLIC_NUMBER = _env("CLIENT_PUBLIC_NUMBER")
 
 # ── Public URL ────────────────────────────────────────────────────────────────
 NGROK_URL = _env("NGROK_URL").rstrip("/")

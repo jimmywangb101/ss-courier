@@ -407,6 +407,79 @@ def test_sms_rejects_malformed_sender(monkeypatch):
     assert "invalid_sender" in result["error"]
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  Website widget (/widget/quote) and the /quote rate limiter it needed
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_widget_page_serves_html(client):
+    response = client.get("/widget/quote")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Get instant quote" in response.text
+    # The server-side placeholder must always be replaced, never leak as-is.
+    assert "__CALL_NUMBER__" not in response.text
+
+
+def test_widget_injects_configured_call_number(client, monkeypatch):
+    from api import config
+
+    monkeypatch.setattr(config, "CLIENT_PUBLIC_NUMBER", "01474557719")
+    assert "01474557719" in client.get("/widget/quote").text
+
+
+def test_widget_omits_call_button_when_number_not_set(client, monkeypatch):
+    """No configured number must not render a broken tel: link.
+
+    _env() returns "" (not None) for an unset value, so the injected line is
+    always `var CALL_NUMBER = "";` - the widget's JS treats that falsy string
+    as "no number configured" and hides the call button accordingly.
+    """
+    from api import config
+
+    monkeypatch.setattr(config, "CLIENT_PUBLIC_NUMBER", "")
+    response = client.get("/widget/quote").text
+    assert 'var CALL_NUMBER = "";' in response
+
+
+def test_quote_endpoint_is_rate_limited(client, monkeypatch):
+    """The widget makes /quote reachable by anyone on the internet, and each
+    call spends real money on the Google Maps API. A flood from one address
+    must eventually be refused rather than run up the client's bill.
+
+    The rate-limiter state is a module-level dict shared across the whole
+    test process, so it is reset here to isolate this test from whatever
+    other tests happened to call /quote before it.
+    """
+    from api import main
+
+    monkeypatch.setattr(main, "_quote_rate_state", {})
+
+    payload = {"pickup_address": "A", "dropoff_address": "B", "weight_kg": 10}
+    statuses = [client.post("/quote", json=payload).status_code for _ in range(35)]
+
+    assert 429 in statuses
+    # Everything up to the limit succeeds; the very next call is refused.
+    assert statuses.index(429) == main._QUOTE_RATE_LIMIT
+    assert all(code == 200 for code in statuses[: main._QUOTE_RATE_LIMIT])
+
+
+def test_quote_rate_limit_is_per_ip(client, monkeypatch):
+    """A flood from one address must not lock out a different caller."""
+    from api import main
+
+    monkeypatch.setattr(main, "_quote_rate_state", {})
+    payload = {"pickup_address": "A", "dropoff_address": "B", "weight_kg": 10}
+
+    for _ in range(main._QUOTE_RATE_LIMIT):
+        client.post("/quote", json=payload, headers={"x-forwarded-for": "1.1.1.1"})
+
+    blocked = client.post("/quote", json=payload, headers={"x-forwarded-for": "1.1.1.1"})
+    assert blocked.status_code == 429
+
+    fresh = client.post("/quote", json=payload, headers={"x-forwarded-for": "2.2.2.2"})
+    assert fresh.status_code == 200
+
+
 def test_reference_falls_back_to_today_on_bad_date():
     """A malformed date must not stop a booking being created."""
     assert booking_ref.is_valid_reference(booking_ref.generate_reference("not-a-date"))
