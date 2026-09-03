@@ -8,13 +8,19 @@
 # git, reviewable and reproducible, rather than only existing as clicks in a
 # dashboard no one else can see.
 #
-# WHY "starter" AND NOT "free"
-# -----------------------------
-# Render's free web services sleep after ~15 minutes with no traffic, and take
-# 30-60 seconds to wake up. For a phone line, that is fatal: the first caller
-# after a quiet spell (overnight, say - exactly when this service exists to
-# catch calls) would sit in silence while Vapi times out waiting for a
-# response. "starter" (~$7/month) stays awake permanently.
+# PLAN: "free" FOR NOW - SWITCH TO "starter" BEFORE REAL CUSTOMERS CALL
+# ------------------------------------------------------------------------
+# Free web services sleep after 15 minutes with no traffic (confirmed against
+# Render's own docs) and take up to a minute to wake back up. Vapi's webhook
+# timeout for this assistant is 30 seconds (see scripts/configure_vapi.py) -
+# so the first caller after any quiet spell, most likely overnight, gets dead
+# air while the server wakes up and Vapi gives up waiting. That is the exact
+# traffic this service exists to catch.
+#
+# Free is fine right now for proving the deploy pipeline works - build,
+# secrets, health check, a real booking through the live URL - before
+# spending anything. Change `plan: free` below to `plan: starter` (~$7/month,
+# stays awake permanently) before this handles a single real customer call.
 #
 # WHY frankfurt
 # -------------
@@ -36,7 +42,7 @@ services:
   - type: web
     name: courier-booking-api
     runtime: python
-    plan: starter
+    plan: free
     region: frankfurt
     branch: main
     rootDir: .
