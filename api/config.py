@@ -116,12 +116,25 @@ VAPI_PRIVATE_KEY = _env("VAPI_PRIVATE_KEY")
 VAPI_SERVER_SECRET = _env("VAPI_SERVER_SECRET")  # blank = signature check skipped
 
 # ── Email (SMTP) ──────────────────────────────────────────────────────────────
-SMTP_HOST = _env("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = _env_int("SMTP_PORT", 587)
-SMTP_USER = _env("SMTP_USER")
-SMTP_PASSWORD = _env("SMTP_PASSWORD")
-SMTP_FROM_NAME = _env("SMTP_FROM_NAME", "Courier Bookings")
-EMAIL_ENABLED = bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+# Moved off Gmail SMTP + an app password onto Resend's HTTP API. Gmail SMTP
+# started failing in production with "534 Please log in with your web
+# browser" after the Google account behind it was disabled and reinstated -
+# Google puts reinstated accounts into an extended, opaque trust-rebuilding
+# period during which SMTP-via-app-password stays blocked regardless of
+# correct settings (2SV on, fresh app password, full interactive login all
+# confirmed, none of it helped). A production system sending real customer
+# confirmations cannot depend on an unpredictable third-party timer like
+# that, so email now goes through a provider built for exactly this rather
+# than a personal inbox.
+RESEND_API_KEY = _env("RESEND_API_KEY")
+# Resend's shared sandbox address - works immediately with no domain setup,
+# but (per Resend) can only deliver to the email address the Resend account
+# itself was signed up with. Switch this to an address on a verified domain
+# (e.g. bookings@sscourier.co.uk) to send to real customers - see
+# docs/setup-guide.md for the DNS records that requires.
+RESEND_FROM_EMAIL = _env("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+EMAIL_FROM_NAME = _env("EMAIL_FROM_NAME", "Courier Bookings")
+EMAIL_ENABLED = bool(RESEND_API_KEY)
 
 # ── The client (business owner) ───────────────────────────────────────────────
 CLIENT_EMAIL = _env("CLIENT_EMAIL")

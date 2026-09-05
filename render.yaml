@@ -90,15 +90,11 @@ services:
         sync: false
       - key: CLIENT_NAME
         value: SS Courier
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_FROM_NAME
+      - key: RESEND_FROM_EMAIL
+        value: onboarding@resend.dev
+      - key: EMAIL_FROM_NAME
         value: SS Courier Bookings
       # NGROK_URL: despite the name, this is read as "our public base URL"
       # everywhere in the code (config.py, scripts/configure_vapi.py) - it was

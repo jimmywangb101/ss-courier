@@ -1,29 +1,41 @@
 """
 email_sender.py — sends confirmation emails to the customer and the client.
 
-WHY STDLIB smtplib AND NOT AN ASYNC LIBRARY?
---------------------------------------------
-`smtplib` is part of Python, so it is one fewer dependency to install and break.
-It IS blocking though, so every send runs inside `asyncio.to_thread(...)`, which
-hands the blocking work to a background thread and lets the event loop carry on
-serving other callers. That gives us the safety of stdlib with async behaviour.
+WHY RESEND'S HTTP API AND NOT SMTP
+-----------------------------------
+This used to be Gmail SMTP with an app password. That broke in production
+after the Google account behind it was disabled and later reinstated: Google
+puts reinstated accounts into an extended, opaque trust-rebuilding window
+where SMTP-via-app-password stays blocked ("534 Please log in with your web
+browser") regardless of correct settings - 2-Step Verification on, a brand
+new app password, a full interactive browser login, all confirmed, none of
+it helped, because the restriction isn't a setting at all. A production
+system sending real customer confirmations cannot depend on an unpredictable
+timer inside somebody's personal Google account.
 
-GMAIL NOTE: SMTP_PASSWORD must be a 16-character **App Password**, not your
-normal Google password. See docs/setup-guide.md.
+Resend is a plain authenticated HTTPS POST, so this is now simpler than the
+SMTP version too: no smtplib, no asyncio.to_thread to keep a blocking socket
+off the event loop - httpx already does this natively.
+
+SANDBOX NOTE: without a verified domain, Resend can only deliver to the email
+address the Resend account itself was signed up with - not arbitrary
+customers. Verify a domain (e.g. sscourier.co.uk) and change
+RESEND_FROM_EMAIL before this can email real customers. See
+docs/setup-guide.md.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import smtplib
-from email.message import EmailMessage
+
+import httpx
 
 from api import config
 
 log = logging.getLogger(__name__)
 
 _TIMEOUT_SECONDS = 15
+_API_URL = "https://api.resend.com/emails"
 
 
 # ── Core sender ───────────────────────────────────────────────────────────────
@@ -38,47 +50,49 @@ async def send_email(to: list[str] | str, subject: str, text_body: str,
     recipients = [a.strip() for a in addresses if a and a.strip()]
 
     if not config.EMAIL_ENABLED:
-        log.warning("SMTP not configured - email '%s' skipped", subject)
-        return {"ok": False, "skipped": True, "error": "smtp_not_configured"}
+        log.warning("Resend not configured - email '%s' skipped", subject)
+        return {"ok": False, "skipped": True, "error": "resend_not_configured"}
     if not recipients:
         return {"ok": False, "error": "no_recipients"}
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = f"{config.SMTP_FROM_NAME} <{config.SMTP_USER}>"
-    message["To"] = ", ".join(recipients)
-    message.set_content(text_body)
+    payload = {
+        "from": f"{config.EMAIL_FROM_NAME} <{config.RESEND_FROM_EMAIL}>",
+        "to": recipients,
+        "subject": subject,
+        "text": text_body,
+    }
     if html_body:
-        # Adding HTML as an alternative means plain-text clients still work.
-        message.add_alternative(html_body, subtype="html")
+        payload["html"] = html_body
 
     try:
-        # to_thread moves the blocking SMTP conversation off the event loop.
-        await asyncio.to_thread(_send_blocking, message, recipients)
+        async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
+            resp = await client.post(
+                _API_URL,
+                headers={"Authorization": f"Bearer {config.RESEND_API_KEY}"},
+                json=payload,
+            )
+        if resp.status_code >= 400:
+            detail = _error_detail(resp)
+            log.error("Resend send failed (%s): %s", resp.status_code, detail)
+            return {"ok": False, "error": detail, "status_code": resp.status_code}
+
         log.info("Email '%s' sent to %s", subject, recipients)
         return {"ok": True, "to": recipients}
-    except Exception as exc:
-        # Bad password, greylisting, DNS - log and continue. A failed email must
-        # never lose us a confirmed booking.
-        log.exception("Email send failed")
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    except httpx.HTTPError as exc:
+        # Network blip, timeout - log and continue. A failed email must never
+        # cost us a confirmed booking.
+        log.exception("Resend network error")
+        return {"ok": False, "error": f"network_error: {exc}"}
 
 
-def _send_blocking(message: EmailMessage, recipients: list[str]) -> None:
-    """The actual SMTP conversation. Runs in a worker thread."""
-    if config.SMTP_PORT == 465:
-        # Port 465 = implicit TLS: encrypted from the very first byte.
-        with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT,
-                              timeout=_TIMEOUT_SECONDS) as server:
-            server.login(config.SMTP_USER, config.SMTP_PASSWORD)
-            server.send_message(message, to_addrs=recipients)
-    else:
-        # Port 587 = STARTTLS: connect in the clear, then upgrade to TLS.
-        with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT,
-                          timeout=_TIMEOUT_SECONDS) as server:
-            server.starttls()
-            server.login(config.SMTP_USER, config.SMTP_PASSWORD)
-            server.send_message(message, to_addrs=recipients)
+def _error_detail(resp: httpx.Response) -> str:
+    """Resend errors arrive as {"message": "...", "name": "..."}."""
+    try:
+        body = resp.json()
+        return f"{body.get('message', 'unknown')} ({body.get('name', 'error')})"
+    except Exception:
+        return resp.text[:300]
 
 
 # ── Message templates ─────────────────────────────────────────────────────────

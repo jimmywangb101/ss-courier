@@ -186,28 +186,63 @@ you are full). `"assumed": false` means the answer is real.
 
 ---
 
-## 5. Email (Gmail SMTP)
+## 5. Email (Resend)
 
-Gmail will not accept your normal password.
+This used to be Gmail SMTP with an app password. It was switched to Resend's
+HTTP API after Gmail SMTP broke in production: the Google account behind it
+got disabled and, once reinstated, Google held it in an extended trust-review
+window where SMTP-via-app-password stays blocked ("534 Please log in with
+your web browser") no matter how correctly everything is configured - 2-Step
+Verification on, a fresh app password, a full interactive login, none of it
+helped, because the block isn't a setting. A production system emailing real
+customers cannot depend on that kind of opaque per-account timer.
 
-1. Enable **2-Step Verification** on the Google account.
-2. <https://myaccount.google.com/apppasswords> → create an app password.
-3. Copy the 16 characters into `.env`:
+### Get an API key
+
+1. Sign up at <https://resend.com> (free tier: 3,000 emails/month)
+2. **API Keys → Create API Key**
+3. Add it to `.env`:
 
 ```
-SMTP_USER=you@gmail.com
-SMTP_PASSWORD=abcd efgh ijkl mnop     # spaces are fine
-CLIENT_EMAIL=owner@couriercompany.co.uk
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxx
+RESEND_FROM_EMAIL=onboarding@resend.dev
+EMAIL_FROM_NAME=SS Courier Bookings
 ```
-
-Gmail caps you at roughly 500 emails/day. Past that, move to SendGrid — only
-`api/services/email_sender.py` would need to change.
 
 **Test it:**
 
 ```powershell
-.\venv\Scripts\python.exe -c "import sys,asyncio;sys.path.insert(0,'.');from api.services import email_sender as e;print(asyncio.run(e.send_email('you@gmail.com','Test','It works')))"
+.\venv\Scripts\python.exe -c "import sys,asyncio;sys.path.insert(0,'.');from api.services import email_sender as e;print(asyncio.run(e.send_email('the-address-you-signed-up-to-resend-with@example.com','Test','It works')))"
 ```
+
+### The sandbox limitation — this blocks real customer email until fixed
+
+Confirmed directly: without a verified domain, Resend's `onboarding@resend.dev`
+address can **only deliver to the email address the Resend account itself was
+signed up with**. Every other recipient — including the client's own business
+inbox — gets rejected with a 403. This is fine for proving the integration
+works, but it means **no real customer or client email goes out until a
+domain is verified.**
+
+### Verify a domain (required before this handles real bookings)
+
+1. Resend dashboard → **Domains → Add Domain** → enter `sscourier.co.uk` (or
+   whichever domain the client controls)
+2. Resend shows a handful of DNS records (typically an MX record plus a
+   couple of TXT records for SPF/DKIM) — add these at wherever the domain's
+   DNS is managed (the client's domain registrar, or whoever hosts their
+   website). **This step needs someone with access to that DNS panel** — it
+   is not something either of us can do without it.
+3. Wait for Resend to show the domain as **Verified** (usually minutes once
+   the records propagate, occasionally longer)
+4. Update `.env`:
+
+```
+RESEND_FROM_EMAIL=bookings@sscourier.co.uk
+```
+
+5. Retest — it should now deliver to the client's real email and any real
+   customer address, not just the Resend account owner's inbox.
 
 ---
 

@@ -84,8 +84,8 @@ Open your local `.env` side by side and copy each of these across:
 | `VAPI_SERVER_SECRET` | same |
 | `CLIENT_EMAIL` | same |
 | `CLIENT_PHONE_NUMBER` | same |
-| `SMTP_USER` | same |
-| `SMTP_PASSWORD` | same |
+| `RESEND_API_KEY` | same |
+| `RESEND_FROM_EMAIL` | same (only matters once a domain is verified - see setup-guide.md §5) |
 
 Leave `NGROK_URL` blank for now — you don't know Render's assigned URL until
 after the first successful deploy (step 5).
