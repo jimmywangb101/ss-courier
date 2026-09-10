@@ -76,28 +76,44 @@ whole system works, but a customer dialling a number cannot reach it yet.
 are free but **US only**. A `+44` number has to be bought elsewhere and
 imported. So the route is:
 
-**Step 1 — Get the UK regulatory bundle approved (Twilio)**
+**Step 1 — UK regulatory bundle — ALREADY DONE ✅**
 
-UK numbers are regulated; Twilio must verify the business address before it
-will issue one.
+Bundle `BUbb9fe3176530f8b642ec1013eb286238` ("United Kingdom: Local —
+Business") is `twilio-approved`, with two validated company addresses attached:
+Northfleet **DA11 8HN** and Gillingham **ME7 5NB**.
 
-- Twilio Console → search **Regulatory Compliance** → **Bundles** →
-  **Create new Bundle** → United Kingdom → Business
-- Upload proof of business address — a utility bill or bank statement, **less
-  than a year old**, at an address **in the same area as the number's dialling
-  code** (01474 is Gravesend, Kent). Twilio rejects PO boxes and virtual
-  addresses.
-- Review usually takes **a few hours to three working days**.
+One consequence to be aware of: a UK number marked `address_requirements:
+local` can only be bought by a business with a proven address **in that same
+dialling area**. Both approved addresses are in Kent, so **London 020 numbers
+will be refused** — this is what the "Provisioning failed" error meant. Buy an
+**01474** (Gravesend) or **01634** (Medway) number and it matches. UK mobile
+numbers (`07…`) need no address at all.
 
-Since January 2025 this is lighter than it used to be: businesses not
-registered at Companies House no longer need documents, and no emergency
-address is required at bundle creation.
+**Step 2 — ⚠️ BLOCKED: lift the account restriction (Twilio Compliance)**
 
-**Step 2 — Buy the number (Twilio)**
+Buying any long-code number currently fails with:
 
-Phone Numbers → Buy a number → United Kingdom → tick **Voice** → buy.
+```
+22300 — Account is restricted from provisioning new long code Phone Numbers
+```
 
-**Step 3 — Import it into Vapi**
+This is an account-level hold applied by Twilio Compliance — routine on
+recently created accounts. It is **not** an address, bundle or funding problem:
+the bundle is approved, the account is full (non-trial) and holds a £34
+balance. Verified during diagnosis: a Gravesend landline and a UK mobile were
+both refused identically, so it blocks every long code.
+
+Only Twilio can lift it. **See `docs/twilio-compliance-request.md` for the
+ready-to-send request** to `verifymyaccount@twilio.com`.
+
+**Step 3 — Buy the number (Twilio), once the hold is lifted**
+
+Phone Numbers → Buy a number → United Kingdom → search `1474` → tick **Voice**
+→ select the **Northfleet DA11 8HN** address and the approved bundle → buy.
+`+441474557242` was free at the time of writing and sits in the same
+`01474 55xxxx` block as the real business line.
+
+**Step 4 — Import it into Vapi**
 
 Vapi dashboard → Phone Numbers → **Create Phone Number** → **Import Twilio**.
 It asks for three things:
@@ -108,7 +124,7 @@ It asks for three things:
 
 Then assign the **Riley** assistant to it.
 
-**Step 4 — Point the business line at it**
+**Step 5 — Point the business line at it**
 
 Ask the existing phone provider to forward `01474557719` to the new Twilio
 number. Customers keep dialling the number they already know.

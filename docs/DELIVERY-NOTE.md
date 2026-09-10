@@ -71,19 +71,22 @@ and 1 view) — never in this email:**
 > the test bookings were made through the system's own test line — but a
 > customer dialling a number cannot reach it until a number is connected.
 >
-> UK phone numbers are regulated, so there is one piece of paperwork in the
-> way — and it is the only thing between you and going live:
+> Your business address verification is **already approved**, so that part is
+> behind us. What remains is a hold the phone provider places on newly opened
+> accounts, which stops any number being bought until they review the account.
+> Yours was opened eight days ago, so this is routine rather than a problem
+> with anything we have done.
 >
-> **What I need from you:** proof of your business address — a utility bill or
-> bank statement, less than a year old, showing an address in the Gravesend
-> area (it has to match the 01474 dialling code). Not a PO box or a virtual
-> office address; those get rejected.
+> **I have prepared the review request** — it explains who you are, your
+> company registration, and exactly how the line will be used (inbound calls
+> only, and a single confirmation text to customers who have just booked with
+> us — no marketing of any kind). It needs sending from the account's own email
+> address.
 >
-> **What happens then:** I submit it to the phone provider, who verify it —
-> usually within a few hours, occasionally up to three working days. Once
-> approved I buy the number, connect it to the AI, and ask your phone provider
-> to forward 01474557719 to it. **Your customers carry on dialling the number
-> they already know** — nothing changes for them.
+> **What happens then:** once they lift the hold, I buy a Gravesend 01474
+> number, connect it to the AI, and ask your phone provider to forward
+> 01474557719 to it. **Your customers carry on dialling the number they already
+> know** — nothing changes for them.
 >
 > I would not recommend moving 01474557719 itself over to the new provider,
 > even though it would save the forwarding step. That takes weeks and puts
@@ -169,9 +172,9 @@ and 1 view) — never in this email:**
 >
 > ### What I need from you
 >
-> 1. **Proof of your business address** — a utility bill or bank statement,
->    less than a year old, for the Gravesend address. This is the one thing
->    holding up the phone number, so it is worth sending first
+> 1. **Send the phone provider's review request** — I have written it for you;
+>    it needs to go from the account's own email address. This is the one thing
+>    holding up the phone line, so it is worth doing first
 > 2. **Half an hour on a call** to transfer the account — let me know when suits
 > 3. **Confirm the prices are right** before real customers hear them — worth a
 >    two-minute look at the table in the handover document
