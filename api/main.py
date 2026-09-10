@@ -1009,6 +1009,49 @@ async def create_booking(req: BookingRequest) -> BookingResponse:
     steps["customer_email"] = _settle(customer_email)
     steps["client_email"] = _settle(client_email)
 
+    # ── 3. Shout if the job is not actually on the calendar ───────────────────
+    #
+    # A failed calendar step is non-fatal by design: the customer has been
+    # quoted, texted and emailed, and tearing all that down because Cal.com
+    # returned an error would be worse than the error. But it leaves the most
+    # dangerous state this system can produce - a booking that exists in the
+    # spreadsheet, in the customer's inbox and in their text messages, but NOT
+    # in the calendar the driver actually works from. Nobody finds out until a
+    # collection is missed.
+    #
+    # Found in production: a call whose date came back with the wrong year
+    # produced exactly this. Cal.com refused the booking (you cannot book a
+    # slot in the past), create_booking still returned ok: True, and nothing
+    # anywhere said the calendar entry was missing.
+    #
+    # "skipped" means Cal.com is not configured at all, which is a known state
+    # and not worth emailing about on every single booking.
+    if not calendar_result.get("ok") and not calendar_result.get("skipped"):
+        log.error("Booking %s is NOT on the calendar: %s",
+                  reference, calendar_result.get("error"))
+        try:
+            await alert_failure(AlertRequest(
+                reason=(f"Booking {reference} was taken and confirmed to the "
+                        f"customer, but it is NOT on the calendar: "
+                        f"{calendar_result.get('error')}. Add it by hand."),
+                details={
+                    "reference": reference,
+                    "customer": req.caller_name,
+                    "phone": caller_phone,
+                    "date": date_str,
+                    "time": time_str,
+                    "pickup": req.pickup_address,
+                    "dropoff": req.dropoff_address,
+                    "weight_kg": req.weight_kg,
+                    "quote_gbp": f"{req.quote_gbp:.2f}",
+                    "calendar_error": calendar_result.get("error"),
+                },
+            ))
+            steps["calendar_alert"] = {"ok": True, "client_notified": True}
+        except Exception as exc:  # noqa: BLE001 - alerting must never break a booking
+            log.exception("Could not send the missing-calendar alert")
+            steps["calendar_alert"] = {"ok": False, "error": str(exc)}
+
     spoken_reference = booking_ref.spell_out_reference(reference)
     return BookingResponse(
         ok=True,

@@ -64,6 +64,9 @@ def normalise_date(value: str | None, *, today: date | None = None) -> str:
     Understands: "2026-09-15", "15/09/2026" (UK day-first), "today",
     "tomorrow", "next tuesday", "15 September", "September 15th".
 
+    Any date that has already passed is rolled forward to the next occurrence
+    of that day and month - see _forward_date() for why that matters.
+
     Falls back to today's date if it cannot understand the input — a booking on
     the wrong day is recoverable, a crashed phone call is not. The agent is
     prompted to read the date back to the caller for confirmation.
@@ -74,13 +77,13 @@ def normalise_date(value: str | None, *, today: date | None = None) -> str:
 
     text = str(value).strip().lower()
 
-    # 1. Already ISO — the happy path.
+    # 1. Already ISO — the common path, but NOT a free pass. This is where a
+    #    wrong year gets caught: see _forward_date().
     iso = re.match(r"^(\d{4})-(\d{2})-(\d{2})", text)
     if iso:
-        try:
-            return date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3))).isoformat()
-        except ValueError:
-            return today.isoformat()
+        parsed = _forward_date(int(iso.group(1)), int(iso.group(2)),
+                               int(iso.group(3)), today)
+        return parsed or today.isoformat()
 
     # 2. Relative words.
     if "today" in text or "this afternoon" in text or "this morning" in text:
@@ -105,7 +108,7 @@ def normalise_date(value: str | None, *, today: date | None = None) -> str:
         year = int(numeric.group(3)) if numeric.group(3) else today.year
         if year < 100:
             year += 2000
-        parsed = _safe_date(year, month, day, today)
+        parsed = _forward_date(year, month, day, today)
         if parsed:
             return parsed
 
@@ -116,7 +119,7 @@ def normalise_date(value: str | None, *, today: date | None = None) -> str:
             year_match = re.search(r"(20\d{2})", text)
             day = int(day_match.group(1)) if day_match else 1
             year = int(year_match.group(1)) if year_match else today.year
-            parsed = _safe_date(year, month, day, today)
+            parsed = _forward_date(year, month, day, today)
             if parsed:
                 return parsed
 
@@ -124,22 +127,36 @@ def normalise_date(value: str | None, *, today: date | None = None) -> str:
     return today.isoformat()
 
 
-def _safe_date(year: int, month: int, day: int, today: date) -> str | None:
-    """Build a date, rolling into next year if the date has already passed.
+def _forward_date(year: int, month: int, day: int, today: date) -> str | None:
+    """Build a date, moving it into the future if it has already passed.
 
-    If a caller says "the 3rd of January" in December they mean next January,
-    not one that is already gone.
+    A courier collection is never in the past, so a date that has already gone
+    is always wrong - either the caller misspoke or, far more often, the
+    speech-to-text/LLM extraction produced a bad YEAR. The day and month come
+    through reliably; the year is the part that gets invented.
+
+    THIS IS NOT THEORETICAL. A live test call on 10 Sep 2026 where the caller
+    said "next Tuesday" and the agent correctly read back "Tuesday the 15th of
+    September" arrived here as "2023-09-15". The old version of this function
+    only rolled a date forward when its year already matched the current year,
+    which caught "the 3rd of January" said in December but let a three-year
+    error through untouched - in every input format, ISO included. The booking
+    was written to the spreadsheet dated 2023, the customer was texted that
+    date, and Cal.com silently refused to create the calendar entry at all,
+    because you cannot book a slot in the past.
+
+    So: keep the caller's day and month, and pick the first year - the one
+    given, then this year, then next year - in which that date has not already
+    passed.
     """
-    try:
-        candidate = date(year, month, day)
-    except ValueError:
-        return None
-    if candidate < today and candidate.year == today.year:
+    for candidate_year in (year, today.year, today.year + 1):
         try:
-            candidate = date(year + 1, month, day)
+            candidate = date(candidate_year, month, day)
         except ValueError:
-            return None
-    return candidate.isoformat()
+            continue  # e.g. 29 February in a non-leap year - try the next one
+        if candidate >= today:
+            return candidate.isoformat()
+    return None
 
 
 # ── Time parsing ──────────────────────────────────────────────────────────────

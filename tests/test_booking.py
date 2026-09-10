@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from conftest import ADMIN_PASSWORD, ADMIN_USERNAME, ORIGINALS, admin_headers
+from conftest import (ADMIN_PASSWORD, ADMIN_USERNAME, FUTURE_ISO, FUTURE_UK,
+                      ORIGINALS, admin_headers)
 from api.services import booking_ref
 
 VALID_BOOKING = {
@@ -21,7 +22,7 @@ VALID_BOOKING = {
     "pickup_address": "1 Oxford Street, London, W1D 1BS",
     "dropoff_address": "Canary Wharf, London, E14 5AB",
     "weight_kg": 350,
-    "date": "2026-09-15",
+    "date": FUTURE_ISO,
     "time": "10:00",
     "quote_gbp": 38.58,
     "distance_miles": 9.43,
@@ -60,7 +61,7 @@ def test_booking_reference_format_and_uniqueness(client):
     }
     assert len(references) == 20
     for reference in references:
-        assert reference.startswith("CRR-20260915-")
+        assert reference.startswith(f"CRR-{FUTURE_ISO.replace('-', '')}-")
 
 
 def test_sms_content_is_useful(client, no_external_calls):
@@ -70,7 +71,7 @@ def test_sms_content_is_useful(client, no_external_calls):
     assert sms["to"] == "+447700900123"          # normalised to E.164
     assert body["reference"] in sms["body"]
     assert "38.58" in sms["body"]
-    assert "2026-09-15" in sms["body"]
+    assert FUTURE_ISO in sms["body"]
 
 
 def test_both_emails_go_to_the_right_people(client, no_external_calls):
@@ -124,10 +125,10 @@ def test_invalid_weight_is_rejected_by_validation(client, weight):
 
 def test_messy_date_and_time_are_normalised(client, no_external_calls):
     client.post("/booking/create", json={
-        **VALID_BOOKING, "date": "15/09/2026", "time": "half past two"})
+        **VALID_BOOKING, "date": FUTURE_UK, "time": "half past two"})
 
     row = no_external_calls["sheet"][0]
-    assert row["service_date"] == "2026-09-15"
+    assert row["service_date"] == FUTURE_ISO
     assert row["service_time"] == "14:30"
 
 
@@ -173,10 +174,10 @@ def test_an_exception_in_one_step_is_contained(client, monkeypatch):
 
 def test_check_availability_free_slot(client):
     body = client.post("/booking/check-availability",
-                       json={"date": "2026-09-15", "time": "10:00"}).json()
+                       json={"date": FUTURE_ISO, "time": "10:00"}).json()
     assert body["available"] is True
     assert body["assumed"] is False
-    assert body["date"] == "2026-09-15"
+    assert body["date"] == FUTURE_ISO
 
 
 def test_check_availability_busy_slot(client, monkeypatch):
@@ -189,7 +190,7 @@ def test_check_availability_busy_slot(client, monkeypatch):
     monkeypatch.setattr(calcom, "check_availability", busy)
 
     body = client.post("/booking/check-availability",
-                       json={"date": "2026-09-15", "time": "10:00"}).json()
+                       json={"date": FUTURE_ISO, "time": "10:00"}).json()
     assert body["available"] is False
     assert body["next_available"] == "13:00"
 
@@ -205,7 +206,7 @@ def test_availability_fails_open_when_calcom_is_down(client, monkeypatch):
     monkeypatch.setattr(calcom, "check_availability", down)
 
     body = client.post("/booking/check-availability",
-                       json={"date": "2026-09-15", "time": "10:00"}).json()
+                       json={"date": FUTURE_ISO, "time": "10:00"}).json()
     assert body["available"] is True
     assert body["assumed"] is True  # flagged as unverified
 

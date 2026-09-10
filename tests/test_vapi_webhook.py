@@ -15,14 +15,14 @@ from __future__ import annotations
 
 import pytest
 
-from conftest import legacy_call_payload, tool_call_payload
+from conftest import FUTURE_ISO, legacy_call_payload, tool_call_payload
 from api.services import booking_ref
 
 QUOTE_ARGS = {
     "pickup_address": "1 Oxford Street, London, W1D 1BS",
     "dropoff_address": "Canary Wharf, London, E14 5AB",
     "weight_kg": 350,
-    "date": "2026-09-15",
+    "date": FUTURE_ISO,
     "time": "10:00",
 }
 
@@ -222,7 +222,7 @@ def end_of_call_payload(accepted: bool = True, **overrides) -> dict:
         "pickup_address": "1 Oxford Street, London",
         "dropoff_address": "Canary Wharf, London",
         "weight_kg": 350,
-        "date": "2026-09-15",
+        "date": FUTURE_ISO,
         "time": "10:00",
         "quote_gbp": 38.58,
         "booking_accepted": accepted,
@@ -250,7 +250,7 @@ def test_end_of_call_extracts_booking_data(client):
     booking = body["booking_data"]
     assert booking["caller_name"] == "Sarah Jones"
     assert booking["weight_kg"] == 350.0
-    assert booking["date"] == "2026-09-15"
+    assert booking["date"] == FUTURE_ISO
     assert booking["quote_gbp"] == 38.58
 
 

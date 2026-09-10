@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,19 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from api import main  # noqa: E402
 from api.services import calcom, email_sender, sheets, twilio_sms  # noqa: E402
+
+
+# ── Dates ─────────────────────────────────────────────────────────────────────
+#
+# Never hardcode a date in a test. normalise_date() rolls any date that has
+# already passed forward to its next occurrence, so a literal like
+# "2026-09-15" silently changes meaning on 16 September 2026 and the suite
+# starts failing for reasons that have nothing to do with the code. These are
+# always comfortably in the future, whenever the suite happens to run.
+
+FUTURE = date.today() + timedelta(days=30)
+FUTURE_ISO = FUTURE.isoformat()          # 2026-10-10
+FUTURE_UK = FUTURE.strftime("%d/%m/%Y")  # 10/10/2026
 
 
 # ── Fake distance so tests are deterministic and free ─────────────────────────
@@ -37,6 +51,7 @@ FAKE_DISTANCE_MILES = 9.43
 ORIGINALS = {
     "send_sms": twilio_sms.send_sms,
     "transfer_call": twilio_sms.transfer_call,
+    "append_booking": sheets.append_booking,
 }
 
 

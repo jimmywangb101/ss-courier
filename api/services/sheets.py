@@ -148,7 +148,15 @@ async def append_booking(record: dict[str, Any]) -> dict:
             resp = await client.post(
                 url,
                 params={
-                    "valueInputOption": "USER_ENTERED",
+                    # RAW, not USER_ENTERED. USER_ENTERED makes Sheets parse
+                    # each cell the way it would parse typing - and a phone
+                    # number in E.164 form starts with "+", which Sheets reads
+                    # as the start of a formula and silently strips, turning
+                    # +447367312558 into the number 447367312558. Losing the
+                    # country code from the one field someone rings back on is
+                    # not worth the pretty number formatting that
+                    # USER_ENTERED buys. RAW stores exactly what we send.
+                    "valueInputOption": "RAW",
                     "insertDataOption": "INSERT_ROWS",
                 },
                 headers={"Authorization": f"Bearer {token}"},
