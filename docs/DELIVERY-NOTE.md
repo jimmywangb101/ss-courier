@@ -71,23 +71,37 @@ and 1 view) — never in this email:**
 > the test bookings were made through the system's own test line — but a
 > customer dialling a number cannot reach it until a number is connected.
 >
-> This is a short job, and there are two ways to do it:
+> UK phone numbers are regulated, so there is one piece of paperwork in the
+> way — and it is the only thing between you and going live:
 >
-> 1. **Buy a number inside the AI platform** and forward your existing
->    01474557719 to it. This can be done today.
-> 2. **Buy a UK number through the messaging provider.** This needs proof of
->    business address approved first, which takes one to three working days.
+> **What I need from you:** proof of your business address — a utility bill or
+> bank statement, less than a year old, showing an address in the Gravesend
+> area (it has to match the 01474 dialling code). Not a PO box or a virtual
+> office address; those get rejected.
 >
-> I would suggest option 1 to get you live, and option 2 later if you would
-> rather everything sat with one provider. Tell me which you prefer and I will
-> set it up.
+> **What happens then:** I submit it to the phone provider, who verify it —
+> usually within a few hours, occasionally up to three working days. Once
+> approved I buy the number, connect it to the AI, and ask your phone provider
+> to forward 01474557719 to it. **Your customers carry on dialling the number
+> they already know** — nothing changes for them.
+>
+> I would not recommend moving 01474557719 itself over to the new provider,
+> even though it would save the forwarding step. That takes weeks and puts
+> your live business line at risk if anything goes wrong. Forwarding can be
+> undone in minutes.
+>
+> If you would like to hear it on a real phone before the paperwork clears, I
+> can set up a temporary test number today at no cost. It would not be
+> suitable for customers, but it lets you ring in and hear exactly how it
+> handles a call.
 >
 > ---
 >
 > ### Handing over ownership
 >
-> Everything for this project sits under a Google account I created
-> specifically for it: **wangbjimmy70@gmail.com**. That account is the sign-in
+> The source code is already in your own GitHub account, so that side needs
+> nothing doing. Everything else for this project sits under a Google account
+> I created specifically for it: **wangbjimmy70@gmail.com**. That account is the sign-in
 > for the AI platform, the calendar, the maps service, the email service and
 > the spreadsheet.
 >
@@ -108,8 +122,6 @@ and 1 view) — never in this email:**
 >
 > We should also, in the same session:
 >
-> - **Transfer the source code** to a GitHub account in your business name, so
->   the system can still be updated if I am ever not around
 > - **Replace all the security keys** — I have necessarily seen them while
 >   building this, and replacing them at handover is simply good practice
 > - **Move the billing** to your company card and set spending limits
@@ -157,12 +169,12 @@ and 1 view) — never in this email:**
 >
 > ### What I need from you
 >
-> 1. **Half an hour on a call** to transfer the account — let me know when suits
-> 2. **Which phone number option** you would like (1 or 2 above)
+> 1. **Proof of your business address** — a utility bill or bank statement,
+>    less than a year old, for the Gravesend address. This is the one thing
+>    holding up the phone number, so it is worth sending first
+> 2. **Half an hour on a call** to transfer the account — let me know when suits
 > 3. **Confirm the prices are right** before real customers hear them — worth a
 >    two-minute look at the table in the handover document
-> 4. **A GitHub account in your business name**, if you do not already have one
->    (free, takes two minutes — I can walk you through it on the call)
 >
 > Once the number is connected, I would suggest we ring the line together so
 > you can hear it, and tell me anything you would like changed about the

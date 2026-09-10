@@ -72,20 +72,62 @@ developer.
 been a browser test call through the Vapi dashboard. Those calls prove the
 whole system works, but a customer dialling a number cannot reach it yet.
 
-To finish this, one of:
+**Vapi cannot sell you a UK number.** Numbers created directly inside Vapi
+are free but **US only**. A `+44` number has to be bought elsewhere and
+imported. So the route is:
 
-1. **Buy a number inside Vapi** (simplest) — Vapi dashboard → Phone Numbers →
-   buy a UK number → assign the "Riley" assistant to it. Then forward the
-   existing business line `01474557719` to it with your phone provider.
-2. **Buy a UK number in Twilio and import it into Vapi.** Twilio is already
-   upgraded to a full account, but currently owns no numbers. A UK number
-   needs Twilio's regulatory bundle (proof of business address) approved
-   first, which takes 1–3 working days.
+**Step 1 — Get the UK regulatory bundle approved (Twilio)**
 
-Option 1 is faster and needs no regulatory wait. Option 2 keeps voice and SMS
-with one provider.
+UK numbers are regulated; Twilio must verify the business address before it
+will issue one.
 
-Until this is done, the system is complete but idle.
+- Twilio Console → search **Regulatory Compliance** → **Bundles** →
+  **Create new Bundle** → United Kingdom → Business
+- Upload proof of business address — a utility bill or bank statement, **less
+  than a year old**, at an address **in the same area as the number's dialling
+  code** (01474 is Gravesend, Kent). Twilio rejects PO boxes and virtual
+  addresses.
+- Review usually takes **a few hours to three working days**.
+
+Since January 2025 this is lighter than it used to be: businesses not
+registered at Companies House no longer need documents, and no emergency
+address is required at bundle creation.
+
+**Step 2 — Buy the number (Twilio)**
+
+Phone Numbers → Buy a number → United Kingdom → tick **Voice** → buy.
+
+**Step 3 — Import it into Vapi**
+
+Vapi dashboard → Phone Numbers → **Create Phone Number** → **Import Twilio**.
+It asks for three things:
+
+- the phone number, with country code
+- the **Twilio Account SID**
+- the **Twilio Auth Token**
+
+Then assign the **Riley** assistant to it.
+
+**Step 4 — Point the business line at it**
+
+Ask the existing phone provider to forward `01474557719` to the new Twilio
+number. Customers keep dialling the number they already know.
+
+> **Do not port `01474557719` into Twilio** to save the forwarding step, at
+> least not yet. Porting takes weeks and puts the live business line at risk
+> if anything goes wrong. Forwarding is reversible in minutes.
+
+**Want to test telephony before the bundle clears?** Create one of Vapi's free
+US numbers and ring it. It proves the whole inbound path works end to end
+while the UK paperwork is in the queue. It is not suitable for production —
+forwarding a UK landline to a US number bills international rates per minute.
+
+**A useful side effect.** Once calls arrive through the client's own Twilio
+account, the code can redirect a live call to a human directly via Twilio
+rather than relying on Vapi to do it. Both paths are already implemented in
+`api/main.py`; the Twilio one simply becomes available.
+
+Until a number is attached, the system is complete but idle.
 
 ### Known limitations, stated plainly
 
@@ -114,7 +156,7 @@ Until this is done, the system is complete but idle.
 | Admin dashboard | `…/admin` | Username `admin`, password sent separately |
 | Website quote widget | `…/widget/quote` | Embed with one `<iframe>` line |
 | Health check | `…/health` | Shows which services are connected |
-| Source code | `github.com/jimmywangb101/ss-courier` | **Private. Must be transferred — see §5** |
+| Source code | `github.com/jimmywangb101/ss-courier` | Private, already under the client's own GitHub account |
 | AI assistant | Vapi — "Riley", `689b2a5d-a6cf-4176-9fa1-1a237a234088` | |
 | Calendar | Cal.com — event type `6906108` | |
 | Bookings log | Google Sheets, tab `Bookings` | |
@@ -197,16 +239,17 @@ it, and they have removed themselves from recovery.
 
 ### Step 2 — The source code
 
-The repository is currently under the developer's personal GitHub account, not
-the client's. Render deploys from it, so if that account disappears, updates
-become impossible.
+**Nothing to transfer.** `github.com/jimmywangb101/ss-courier` is already the
+client's own GitHub account, so the code sits where it should. Render deploys
+from it, and that link is unaffected by the handover.
 
-- [ ] Client creates a GitHub account (or organisation) in the business name
-- [ ] Developer: repo → Settings → **Transfer ownership** → to the client's account
-- [ ] Client accepts the transfer
-- [ ] In Render → the service → Settings → **reconnect** the repository under
-      its new owner
-- [ ] Push a trivial change and confirm Render still auto-deploys
+The only thing to tidy is the developer's access to it:
+
+- [ ] Repo → Settings → **Collaborators** → remove the developer, if listed
+- [ ] GitHub → Settings → **Developer settings → Personal access tokens** →
+      revoke any token the developer used to push
+- [ ] Confirm Render still deploys: push a trivial change (or use
+      **Manual Deploy** in the Render dashboard) and watch it go green
 
 ### Step 3 — Rotate the credentials
 
@@ -309,7 +352,7 @@ Full troubleshooting is in **`docs/setup-guide.md`** §12.
 
 - [ ] Google account password changed, recovery details replaced
 - [ ] Developer confirms no remaining access to the Google account
-- [ ] GitHub repository transferred and Render reconnected
+- [ ] Developer's GitHub access removed; Render still deploys
 - [ ] All API keys rotated; `/health` shows every integration `true`
 - [ ] Billing moved to the company card, spending caps set
 - [ ] Admin dashboard password changed and tested
