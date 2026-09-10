@@ -79,15 +79,23 @@ imported. So the route is:
 **Step 1 — UK regulatory bundle — ALREADY DONE ✅**
 
 Bundle `BUbb9fe3176530f8b642ec1013eb286238` ("United Kingdom: Local —
-Business") is `twilio-approved`, with two validated company addresses attached:
-Northfleet **DA11 8HN** and Gillingham **ME7 5NB**.
+Business") is **approved**, for Salus Securities & Couriers Limited (UK CRN
+15750459), authorised representative Jimmy Wangboje.
 
-One consequence to be aware of: a UK number marked `address_requirements:
-local` can only be bought by a business with a proven address **in that same
-dialling area**. Both approved addresses are in Kent, so **London 020 numbers
-will be refused** — this is what the "Provisioning failed" error meant. Buy an
-**01474** (Gravesend) or **01634** (Medway) number and it matches. UK mobile
-numbers (`07…`) need no address at all.
+**The address on that approved bundle is 7 St John's Road, Gillingham, Kent,
+ME7 5NB.** This matters more than it looks. A UK number marked
+`address_requirements: local` can only be bought by a business with a proven
+address **in that same dialling area**, and the bundle carries the Gillingham
+address — so the number must be on the **01634 (Medway)** code.
+
+The account also holds a second validated address in Northfleet (DA11 8HN,
+which is the 01474 Gravesend area), but it is **not** the one attached to the
+approved bundle, so it does not help here.
+
+This is what the "Provisioning failed" error meant: a **London 020** number was
+selected, and London is neither Gillingham nor Northfleet. UK mobile numbers
+(`07…`) carry no address requirement at all and would sidestep the issue
+entirely.
 
 **Step 2 — ⚠️ BLOCKED: lift the account restriction (Twilio Compliance)**
 
@@ -108,10 +116,14 @@ ready-to-send request** to `verifymyaccount@twilio.com`.
 
 **Step 3 — Buy the number (Twilio), once the hold is lifted**
 
-Phone Numbers → Buy a number → United Kingdom → search `1474` → tick **Voice**
-→ select the **Northfleet DA11 8HN** address and the approved bundle → buy.
-`+441474557242` was free at the time of writing and sits in the same
-`01474 55xxxx` block as the real business line.
+Phone Numbers → Buy a number → United Kingdom → search `1634` → tick **Voice**
+→ select the **Gillingham ME7 5NB** address and the approved bundle → buy.
+Free at the time of writing: `+441634980582`, `+441634949983`,
+`+441634980994`, `+441634980195`.
+
+The number's area code does not need to match the published business line
+(01474), because customers never dial it — `01474557719` forwards to it. It
+only has to match the address on the approved bundle.
 
 **Step 4 — Import it into Vapi**
 

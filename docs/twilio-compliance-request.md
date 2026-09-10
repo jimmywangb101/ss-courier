@@ -43,12 +43,13 @@ landline and a UK mobile were both refused with the identical error.
 >
 > - **Account SID:** `<paste from the Twilio Console dashboard>`
 > - **Business name:** Salus Securities & Couriers Limited
-> - **Company registration number:** 15750459
+> - **Company registration number (UK CRN):** 15750459
 > - **Website:** https://sscourier.co.uk
-> - **Registered address:** Rectory Cottage, Springhead Enterprise Park,
->   Northfleet, Kent, DA11 8HN, United Kingdom
+> - **Registered address:** 7 St John's Road, Gillingham, Kent, ME7 5NB,
+>   United Kingdom
+> - **Authorised representative:** Jimmy Wangboje — Info@sscourier.co.uk
 > - **Approved UK regulatory bundle:** BUbb9fe3176530f8b642ec1013eb286238
->   ("United Kingdom: Local — Business", status: twilio-approved)
+>   ("United Kingdom: Local — Business", status: **approved**)
 >
 > **What we are building**
 >
@@ -56,10 +57,11 @@ landline and a UK mobile were both refused with the identical error.
 > telephone booking line so that customer calls are answered 24 hours a day,
 > including overnight and at weekends when no one is in the office.
 >
-> We would like to purchase one UK local number, **+441474557242** (Gravesend
-> — the same dialling area as our existing business line and as our registered
-> address). It will not be advertised to customers. Our existing published
-> number, 01474557719, will simply be forwarded to it.
+> We would like to purchase one UK local number on the **01634 (Medway)**
+> dialling code — the area matching the registered address on our approved
+> bundle. It will not be advertised anywhere. Our existing published business
+> number, 01474557719, will simply be forwarded to it, so customers continue to
+> dial the number they already know and never see this one.
 >
 > **How we intend to use it**
 >
@@ -97,8 +99,14 @@ landline and a UK mobile were both refused with the identical error.
 Once the restriction is lifted, everything else is quick:
 
 1. **Buy the number** — Twilio → Phone Numbers → Buy a number → United Kingdom
-   → search `1474` → pick `+441474557242` (or any 01474 number still free) →
-   select the **Northfleet DA11 8HN** address and the approved bundle.
+   → search `1634` → pick any free Medway number (`+441634980582`,
+   `+441634949983`, `+441634980994` and `+441634980195` were free at the time
+   of writing) → select the **Gillingham ME7 5NB** address and the approved
+   bundle.
+
+   It must be an **01634** number: that is the dialling area of the address on
+   the approved bundle. It does not need to match the published line (01474),
+   because customers never dial it — `01474557719` forwards to it.
 2. **Import it into Vapi** — Phone Numbers → Create Phone Number →
    **Import Twilio** → enter the number, the Account SID and the Auth Token.
 3. **Assign the assistant** — select **Riley**.
