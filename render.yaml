@@ -92,10 +92,26 @@ services:
         value: SS Courier
       - key: RESEND_API_KEY
         sync: false
+      # Must stay on the VERIFIED domain. This was previously pinned here to
+      # Resend's shared sandbox address (onboarding@resend.dev), which can
+      # only deliver to the Resend account owner's own inbox - so a Blueprint
+      # re-sync would have silently reset the dashboard value back to it and
+      # stopped every customer confirmation from arriving, with the app still
+      # reporting the send as successful.
       - key: RESEND_FROM_EMAIL
-        value: onboarding@resend.dev
+        value: bookings@sscourierbookings.com
       - key: EMAIL_FROM_NAME
         value: SS Courier Bookings
+      # Admin dashboard login. /admin and /admin/bookings show customer
+      # names, phone numbers and addresses, and this service is on a public
+      # URL, so both sit behind HTTP Basic auth. Fails closed: if
+      # ADMIN_PASSWORD is unset the dashboard returns 503 rather than
+      # serving customer data to anyone who finds the address.
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+
       # NGROK_URL: despite the name, this is read as "our public base URL"
       # everywhere in the code (config.py, scripts/configure_vapi.py) - it was
       # never renamed after moving off the tunnel. Once deployed, set this to

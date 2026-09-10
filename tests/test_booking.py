@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from conftest import ORIGINALS
+from conftest import ADMIN_PASSWORD, ADMIN_USERNAME, ORIGINALS, admin_headers
 from api.services import booking_ref
 
 VALID_BOOKING = {
@@ -267,7 +267,7 @@ def test_admin_bookings_lists_newest_first(client):
     second = client.post("/booking/create",
                          json={**VALID_BOOKING, "caller_name": "Tom"}).json()["reference"]
 
-    body = client.get("/admin/bookings").json()
+    body = client.get("/admin/bookings", headers=admin_headers()).json()
     assert body["count"] == 2
     assert body["bookings"][0]["reference"] == second  # newest first
     assert body["bookings"][1]["reference"] == first
@@ -277,7 +277,8 @@ def test_admin_bookings_respects_limit(client):
     for _ in range(5):
         client.post("/booking/create", json=VALID_BOOKING)
 
-    assert client.get("/admin/bookings?limit=3").json()["count"] == 3
+    assert client.get("/admin/bookings?limit=3",
+                      headers=admin_headers()).json()["count"] == 3
 
 
 def test_admin_bookings_source_reflects_what_actually_happened(client, monkeypatch):
@@ -299,17 +300,87 @@ def test_admin_bookings_source_reflects_what_actually_happened(client, monkeypat
     monkeypatch.setattr(config, "SHEETS_ENABLED", True)   # configured...
     monkeypatch.setattr(sheets, "list_bookings", fell_back_to_local)  # ...but this call fell back
 
-    body = client.get("/admin/bookings").json()
+    body = client.get("/admin/bookings", headers=admin_headers()).json()
     assert body["source"] == "local_log"
 
 
 def test_admin_dashboard_renders(client):
-    response = client.get("/admin")
+    response = client.get("/admin", headers=admin_headers())
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Courier bookings" in response.text
     # The page must escape call data before rendering it.
     assert "function esc(" in response.text
+
+
+# ── Admin authentication ──────────────────────────────────────────────────────
+#
+# These endpoints expose customer names, phone numbers and addresses on a
+# public URL, so "is it locked?" is worth as much test coverage as "does it
+# list the right rows?".
+
+@pytest.mark.parametrize("path", ["/admin", "/admin/bookings"])
+def test_admin_requires_credentials(client, path):
+    """No Authorization header at all -> 401 plus the header that makes the
+    browser show a login prompt."""
+    response = client.get(path)
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"].startswith("Basic")
+
+
+@pytest.mark.parametrize("path", ["/admin", "/admin/bookings"])
+def test_admin_rejects_wrong_password(client, path):
+    response = client.get(path, headers=admin_headers(password="wrong"))
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("path", ["/admin", "/admin/bookings"])
+def test_admin_rejects_wrong_username(client, path):
+    response = client.get(path, headers=admin_headers(username="someone-else"))
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("path", ["/admin", "/admin/bookings"])
+def test_admin_fails_closed_when_no_password_configured(client, monkeypatch, path):
+    """The whole point of the design: an unconfigured password must make the
+    dashboard UNAVAILABLE, never unprotected.
+
+    Every other integration in this app fails open on purpose. If this one
+    did too, forgetting one environment variable on a deploy would quietly
+    publish the client's customer records.
+    """
+    from api import config
+
+    monkeypatch.setattr(config, "ADMIN_AUTH_ENABLED", False)
+
+    # Even with the correct credentials, there is nothing to log in to.
+    response = client.get(path, headers=admin_headers())
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"]
+
+    # And it certainly must not serve the data.
+    assert "Courier bookings" not in response.text
+
+
+def test_admin_credentials_come_from_config(client, monkeypatch):
+    """Changing the configured password changes what is accepted - i.e. the
+    check reads config rather than any hardcoded value."""
+    from api import config
+
+    monkeypatch.setattr(config, "ADMIN_PASSWORD", "a-different-password")
+
+    assert client.get("/admin", headers=admin_headers()).status_code == 401
+    assert client.get(
+        "/admin", headers=admin_headers(password="a-different-password")
+    ).status_code == 200
+
+
+def test_admin_login_succeeds_with_configured_credentials(client):
+    response = client.get(
+        "/admin", headers=admin_headers(ADMIN_USERNAME, ADMIN_PASSWORD)
+    )
+    assert response.status_code == 200
+    assert "Courier bookings" in response.text
 
 
 # ══════════════════════════════════════════════════════════════════════════════

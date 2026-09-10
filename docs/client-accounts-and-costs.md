@@ -95,8 +95,9 @@ Replace `[Client name]`, `[Your name]` and `[your email]` before sending.
 | Vapi | Client | Client card | Dominant cost; scales directly with call minutes |
 | Cal.com | Client | Free tier likely | Only needs the event type ID to work |
 | Google Sheets | Client | Free | Share with the service-account email |
-| Gmail SMTP | Client | Free | Needs an App Password, not the normal password |
-| Hosting / ngrok | Client | Client card | Replaces the ngrok URL that changes on every restart |
+| Resend (email) | Client | Free tier: 3,000/month | Sends from `bookings@sscourierbookings.com`. Replaced Gmail SMTP, which Google blocked |
+| Cloudflare (DNS) | Client | Free | Holds the SPF/DKIM/DMARC records that let the emails authenticate |
+| Render (hosting) | Client | ~$7/month `starter` | Permanent URL. The free plan sleeps after 15 min, which would drop the first overnight call |
 
 ### Points worth raising on the call
 

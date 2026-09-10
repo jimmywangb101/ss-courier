@@ -269,17 +269,18 @@ permission to send from one of your addresses.
 `bookings@yourcompany.co.uk` rather than using your main inbox. If anything ever
 needs revoking, it's isolated.
 
-Then:
+**This part is already done — nothing for you to do here.** Confirmation
+emails are sent through a dedicated email service (Resend) from the address
+`bookings@sscourierbookings.com`, on a domain set up specifically for this.
 
-1. Sign in to that account and turn on **2-Step Verification** at
-   <https://myaccount.google.com/security>
-2. Go to <https://myaccount.google.com/apppasswords>
-3. Create an app password named `Courier Booking System`
-4. Google shows you 16 characters — send them to me using the safe method below
-
-> An "app password" is a single-purpose password that only lets software send
-> mail. It is **not** your account password, it can't be used to sign in and
-> read your email, and you can revoke it any time from that same page.
+We originally planned to send these through a Gmail address using an "app
+password". That approach was abandoned: Google blocked the account partway
+through setup and, once it was reinstated, kept it in a review period where
+that kind of automated sending stays blocked with no published end date. A
+system emailing your customers cannot depend on that, so it now runs on a
+service built for the job — which also means the emails are properly
+authenticated (SPF, DKIM and DMARC are all in place), so they land in inboxes
+rather than spam folders.
 
 ---
 
@@ -301,7 +302,7 @@ Once the account exists, I'll do the deployment.
 
 ## Sending me the keys safely
 
-A few of the items above (the Cal.com key, the email app password) are
+A few of the items above (the Cal.com key in particular) are
 effectively passwords. **Please don't send those by email, WhatsApp or text** —
 those messages sit on servers and in backups indefinitely.
 

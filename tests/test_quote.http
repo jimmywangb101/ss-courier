@@ -8,11 +8,11 @@
 #  Start the API first:
 #     ./venv/Scripts/python.exe -m uvicorn api.main:app --reload
 #
-#  Switch @host to the ngrok line to test what Vapi will actually reach.
+#  Switch @host to the Render line to test what Vapi will actually reach.
 ###############################################################################
 
 @host = http://localhost:8000
-# @host = https://childless-stride-clunky.ngrok-free.dev
+# @host = https://courier-booking-api.onrender.com
 
 # Paste a real reference here after running "Create a booking" below.
 @reference = CRR-20260915-K7Q4

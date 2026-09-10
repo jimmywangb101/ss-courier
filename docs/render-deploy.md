@@ -85,7 +85,9 @@ Open your local `.env` side by side and copy each of these across:
 | `CLIENT_EMAIL` | same |
 | `CLIENT_PHONE_NUMBER` | same |
 | `RESEND_API_KEY` | same |
-| `RESEND_FROM_EMAIL` | same (only matters once a domain is verified - see setup-guide.md §5) |
+| `RESEND_FROM_EMAIL` | same (`bookings@sscourierbookings.com`) |
+| `ADMIN_USERNAME` | same |
+| `ADMIN_PASSWORD` | same - **required**, or `/admin` returns 503 |
 
 Leave `NGROK_URL` blank for now — you don't know Render's assigned URL until
 after the first successful deploy (step 5).

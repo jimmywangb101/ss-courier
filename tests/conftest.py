@@ -12,6 +12,7 @@ Two jobs:
 
 from __future__ import annotations
 
+import base64
 import sys
 from pathlib import Path
 
@@ -93,6 +94,13 @@ def no_external_calls(monkeypatch, tmp_path):
     monkeypatch.setattr(main.config, "TRANSFERS_LOG", tmp_path / "transfers.jsonl")
     monkeypatch.setattr(main.config, "BOOKINGS_LOG", tmp_path / "bookings.jsonl")
 
+    # The admin endpoints fail CLOSED, so tests must supply credentials rather
+    # than inheriting whatever .env happens to hold. Pinned here; the tests
+    # that exercise the auth itself override these with monkeypatch.
+    monkeypatch.setattr(main.config, "ADMIN_USERNAME", ADMIN_USERNAME)
+    monkeypatch.setattr(main.config, "ADMIN_PASSWORD", ADMIN_PASSWORD)
+    monkeypatch.setattr(main.config, "ADMIN_AUTH_ENABLED", True)
+
     # Tests must not depend on what happens to be in .env today.
     # Once a real VAPI_SERVER_SECRET was added, /vapi/webhook started (correctly)
     # rejecting the unsigned requests these tests send, and six of them broke
@@ -102,6 +110,24 @@ def no_external_calls(monkeypatch, tmp_path):
     monkeypatch.setattr(main.config, "VAPI_SERVER_SECRET", "")
 
     return calls
+
+
+# ── Admin auth helpers ────────────────────────────────────────────────────────
+
+ADMIN_USERNAME = "testadmin"
+ADMIN_PASSWORD = "test-password-123"
+
+
+def admin_headers(username: str = ADMIN_USERNAME,
+                  password: str = ADMIN_PASSWORD) -> dict[str, str]:
+    """An HTTP Basic Authorization header for the admin endpoints.
+
+    Built by hand rather than via TestClient's auth= argument, because that
+    argument's availability varies between Starlette versions and this does
+    not.
+    """
+    token = base64.b64encode(f"{username}:{password}".encode()).decode()
+    return {"Authorization": f"Basic {token}"}
 
 
 @pytest.fixture

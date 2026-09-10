@@ -19,7 +19,7 @@ quietly broken.
 Then in a second terminal:
 
 ```powershell
-.\venv\Scripts\python.exe -m pytest tests\ -q          # should be 65 passed
+.\venv\Scripts\python.exe -m pytest tests\ -q          # should be 98 passed
 ```
 
 **Test it:** open <http://localhost:8000/health>. The `integrations` block tells
@@ -246,22 +246,27 @@ RESEND_FROM_EMAIL=bookings@sscourier.co.uk
 
 ---
 
-## 6. ngrok — exposing your PC to Vapi
+## 6. The public URL
 
-Vapi lives on the internet; your API lives on your laptop. ngrok bridges them.
+Vapi lives on the internet and has to be able to reach this API. **This now
+runs on Render**, at a permanent address:
 
-```powershell
-ngrok http 8000
+```
+https://courier-booking-api.onrender.com
 ```
 
-Copy the `https://` URL into `.env` as `NGROK_URL`.
+That address is stored in `.env` as `NGROK_URL` — the variable was never
+renamed after the move off the tunnel, so read it as "our public base URL"
+wherever it appears. See `docs/render-deploy.md` for the deployment itself.
 
-> **The free-tier trap:** the URL changes every time you restart ngrok, and you
-> must update it in the Vapi dashboard each time. A paid static domain (or
-> deploying to a real host) removes this daily annoyance. Your current reserved
-> domain is `childless-stride-clunky.ngrok-free.dev`.
+> **Historical note.** During development this was an ngrok tunnel to a
+> laptop, and the free-tier URL changed on every restart — which meant
+> re-running `configure_vapi.py` constantly. That is no longer part of the
+> live system. You only need ngrok if you want Vapi to reach a local dev
+> server: `ngrok http 8000`, then point `NGROK_URL` at the tunnel
+> temporarily.
 
-**Test it:** open `https://<your-ngrok-url>/health` in a browser.
+**Test it:** open <https://courier-booking-api.onrender.com/health> in a browser.
 
 ---
 
@@ -479,7 +484,25 @@ it just is not required for a call to complete.
 `tests/test_quote.http` covers every endpoint by hand (VS Code REST Client
 extension).
 
-The dashboard is at <http://localhost:8000/admin>.
+The dashboard is at <http://localhost:8000/admin> locally, or
+<https://courier-booking-api.onrender.com/admin> live.
+
+**It asks for a username and password.** Set both in `.env` (and in Render's
+Environment tab for the live one):
+
+```
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<a long random string>
+```
+
+This page lists customer names, phone numbers and addresses, and the service
+is on a public URL, so it is behind HTTP Basic auth. It **fails closed**: with
+no `ADMIN_PASSWORD` set the page returns `503 not configured` rather than
+serving customer data to anyone who finds the address. That is deliberately
+the opposite of how the rest of the app degrades — everything else fails open
+so an outage never kills a live call, but failing open on a password would
+publish the client's customer records. `/health` shows `admin_auth: true` once
+it is configured.
 
 ---
 
@@ -517,14 +540,20 @@ Remove-Item logs\bookings.jsonl
 - [ ] `/health` shows every integration `true`
 - [ ] A real test call books a real job end to end
 - [ ] Quote prices spot-checked against the client's own pricing
-- [ ] `/admin` protected, or not exposed through ngrok (it has **no auth**)
+- [ ] `ADMIN_USERNAME` / `ADMIN_PASSWORD` set in **both** `.env` and Render,
+      and the `/admin` login tested
 
 ### Known limitations to raise with the client
 
-- **ngrok free URLs change on restart.** For production, deploy the API to a
-  host (Railway, Fly.io, a VPS) so the URL is stable.
-- **`/admin` has no authentication.** Anyone with the link sees customer names,
-  numbers and addresses. Add auth before sharing it.
+- **`/admin` is protected by a single shared password.** HTTP Basic auth, one
+  username and password for everyone who uses it. That is proportionate for a
+  read-only page used by one or two people, but there are no individual
+  accounts and no audit trail of who looked at what. Rotate the password if
+  anyone with it leaves.
+- **The local booking log does not survive a redeploy.** Render's filesystem is
+  ephemeral, so `logs/*.jsonl` is wiped on each deploy. That is deliberate and
+  safe *because Google Sheets is the system of record* — the local file is only
+  ever the fallback for when Sheets is unreachable.
 - **Availability fails open.** If Cal.com is unreachable the agent will still
   take the booking rather than turn a customer away. Double bookings are
   possible during a Cal.com outage — that trade-off was deliberate.

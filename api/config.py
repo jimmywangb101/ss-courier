@@ -115,6 +115,23 @@ CALCOM_ENABLED = bool(CAL_API_KEY and CAL_EVENT_TYPE_ID)
 VAPI_PRIVATE_KEY = _env("VAPI_PRIVATE_KEY")
 VAPI_SERVER_SECRET = _env("VAPI_SERVER_SECRET")  # blank = signature check skipped
 
+# ── Admin dashboard ───────────────────────────────────────────────────────────
+# /admin and /admin/bookings show real customer names, phone numbers and
+# addresses. While this only ran on localhost that was fine; it is now on a
+# public Render URL, so it needs a password.
+#
+# NOTE THE DIFFERENT FAILURE POSTURE. Everything else in this file fails OPEN
+# on purpose - a missing Twilio key must not kill a live call, and Cal.com
+# being unreachable answers "yes, that slot is free" rather than turning a
+# paying customer away. That reasoning is about not losing revenue during an
+# outage. It does not transfer here: an unconfigured password failing open
+# would publish the client's customer records to anyone who guesses the URL.
+# So the admin endpoints fail CLOSED - no credentials configured means the
+# dashboard is unavailable, not unprotected.
+ADMIN_USERNAME = _env("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = _env("ADMIN_PASSWORD")
+ADMIN_AUTH_ENABLED = bool(ADMIN_USERNAME and ADMIN_PASSWORD)
+
 # ── Email (SMTP) ──────────────────────────────────────────────────────────────
 # Moved off Gmail SMTP + an app password onto Resend's HTTP API. Gmail SMTP
 # started failing in production with "534 Please log in with your web
@@ -167,4 +184,6 @@ def integration_status() -> dict[str, bool]:
         "calcom": CALCOM_ENABLED,
         "email": EMAIL_ENABLED,
         "vapi_secret_check": bool(VAPI_SERVER_SECRET),
+        # False means /admin is locked (no password set), not that it is open.
+        "admin_auth": ADMIN_AUTH_ENABLED,
     }

@@ -40,5 +40,7 @@ pytest==9.1.1
 # Notes:
 #  * Twilio  — no SDK needed. The Twilio SDK is blocking; we call its REST API
 #              directly with httpx (basic auth + form-encoded body).
-#  * Email   — no SDK needed. We use the stdlib `smtplib`, run inside
-#              asyncio.to_thread() so it never blocks the event loop.
+#  * Email   — no SDK needed. Resend is a plain authenticated HTTPS POST, so
+#              httpx handles it natively and asynchronously. (This was
+#              previously stdlib smtplib in a worker thread; see
+#              api/services/email_sender.py for why it moved.)

@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import re
+import secrets
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -30,6 +31,7 @@ from typing import Any
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
 from api import config, utils
@@ -1315,8 +1317,70 @@ _WIDGET_HTML = """<!doctype html>
 # ══════════════════════════════════════════════════════════════════════════════
 #  PHASE 4 — Admin dashboard
 # ══════════════════════════════════════════════════════════════════════════════
+#
+#  AUTHENTICATION
+#  --------------
+#  These two endpoints expose real customer names, phone numbers and addresses.
+#  That was acceptable while this only ever ran on localhost; it is not now the
+#  service is on a public URL, so both sit behind HTTP Basic auth.
+#
+#  Basic auth is enough here and deliberately not more: it is one env var pair,
+#  every browser implements the login prompt natively, and it costs no session
+#  store, no login page and no cookie handling. The page is read-only and used
+#  by one or two people in the office - a full auth system would be more moving
+#  parts guarding less than a password does.
+#
+#  It is only safe because the service is HTTPS-only (Render terminates TLS),
+#  so the credentials are never sent in clear text. Do not reuse this pattern
+#  on a plain-HTTP host.
 
-@app.get("/admin/bookings")
+_admin_basic = HTTPBasic(auto_error=False)
+
+
+def _require_admin(
+    credentials: HTTPBasicCredentials | None = Depends(_admin_basic),
+) -> None:
+    """Gate the admin endpoints behind ADMIN_USERNAME / ADMIN_PASSWORD.
+
+    FAILS CLOSED. If no password is configured the dashboard is unavailable
+    rather than unprotected - see the note in config.py for why this is the
+    opposite of how every other integration in this app degrades.
+    """
+    if not config.ADMIN_AUTH_ENABLED:
+        log.error("Admin dashboard blocked: ADMIN_PASSWORD is not set")
+        raise HTTPException(
+            status_code=503,
+            detail=("The admin dashboard is not configured. Set ADMIN_USERNAME "
+                    "and ADMIN_PASSWORD in the environment to enable it."),
+        )
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": 'Basic realm="Courier admin"'},
+        )
+
+    # compare_digest, not ==, so a wrong password cannot be recovered one
+    # character at a time by timing the response. Both halves are compared
+    # before the result is used, so the check does not short-circuit on a
+    # wrong username either.
+    user_ok = secrets.compare_digest(
+        credentials.username.encode("utf-8"), config.ADMIN_USERNAME.encode("utf-8")
+    )
+    password_ok = secrets.compare_digest(
+        credentials.password.encode("utf-8"), config.ADMIN_PASSWORD.encode("utf-8")
+    )
+    if not (user_ok and password_ok):
+        log.warning("Rejected admin login for username %r", credentials.username)
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": 'Basic realm="Courier admin"'},
+        )
+
+
+@app.get("/admin/bookings", dependencies=[Depends(_require_admin)])
 async def admin_bookings(limit: int = 50) -> dict:
     """The last N bookings as JSON. Backs the admin dashboard.
 
@@ -1337,13 +1401,14 @@ async def admin_bookings(limit: int = 50) -> dict:
     }
 
 
-@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin", response_class=HTMLResponse,
+         dependencies=[Depends(_require_admin)])
 async def admin_dashboard() -> HTMLResponse:
-    """A single-page operations view.
+    """A single-page operations view, behind HTTP Basic auth.
 
-    NO AUTHENTICATION YET — anyone with the URL can read customer details. Keep
-    it on localhost, or put a password in front of it before sharing the ngrok
-    link. Phase 5 adds proper auth.
+    The page fetches /admin/bookings itself. That call needs no special
+    handling: the browser caches the credentials it just prompted for and
+    replays them on same-origin requests automatically.
     """
     return HTMLResponse(_ADMIN_HTML)
 
@@ -1404,7 +1469,7 @@ _ADMIN_HTML = """<!doctype html>
     <div class="empty" id="empty" hidden>No bookings recorded yet.</div>
   </div>
 </main>
-<footer>Refreshes automatically every 60 seconds. No authentication - keep this page private.</footer>
+<footer>Refreshes automatically every 60 seconds. Contains customer personal data - do not share this login.</footer>
 
 <script>
 // Escape anything that came from a phone call before putting it in the DOM.
