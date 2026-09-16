@@ -61,6 +61,10 @@ RULES
 - After they accept, take their full name, mobile number and email address.
 - Read the date and time back to confirm before you finish.
 - We operate 24 hours a day, seven days a week, so never tell a caller we are closed.
+- All prices are in British pounds. Say the price in pounds, exactly as get_quote gives it. Never say dollars and never use a dollar sign.
+- You do not know today's date. When you pass the collection date to get_quote, use the caller's own words, such as "today", "tomorrow", "next Tuesday" or "15 May". Never work out or invent a calendar date yourself.
+- A UK mobile number has 11 digits and starts with 07. Read the number back to the caller digit by digit. If you have fewer than 11 digits, ask for it again.
+- A full UK postcode ends with a number followed by two letters, for example ME7 4RQ. If a postcode sounds incomplete, ask the caller to repeat it before quoting.
 
 TONE
 Friendly and efficient, like a good dispatcher who knows the roads. Use "lovely", "no problem", "bear with me" naturally. Never read out JSON, numbers with decimals, or technical detail."""
@@ -80,8 +84,8 @@ TOOLS = [
                                         "description": "Full delivery address including postcode"},
                     "weight_kg": {"type": "number", "description": "Load weight in kilograms"},
                     "date": {"type": "string",
-                             "description": "Collection date, e.g. 2026-09-15 or 'tomorrow'"},
-                    "time": {"type": "string", "description": "Collection time, e.g. 14:30 or '2pm'"},
+                             "description": "Collection date in the caller's own words, e.g. 'today', 'tomorrow', 'next Tuesday', '15 May'. Never a numeric date."},
+                    "time": {"type": "string", "description": "Collection time as the caller said it, e.g. '1pm' or 'half past two'"},
                 },
                 "required": ["pickup_address", "dropoff_address", "weight_kg", "date", "time"],
             },
@@ -113,13 +117,23 @@ STRUCTURED_SCHEMA = {
     "type": "object",
     "properties": {
         "caller_name": {"type": "string"},
-        "caller_phone": {"type": "string"},
         "caller_email": {"type": "string"},
         "pickup_address": {"type": "string"},
         "dropoff_address": {"type": "string"},
         "weight_kg": {"type": "number"},
-        "date": {"type": "string", "description": "Collection date as YYYY-MM-DD"},
-        "time": {"type": "string", "description": "Collection time as HH:MM 24-hour"},
+        # NOT "YYYY-MM-DD". This summary is written after the call by a model
+        # that does not know today's date, so asking it for a numeric date
+        # makes it invent one: a live call where the caller said "today" came
+        # back as 2024-05-15 and was booked for May 2027. Taking the caller's
+        # own words and resolving them on our server with the real clock
+        # (utils.normalise_date understands today/tomorrow/weekdays/"15 May")
+        # removes the guess entirely.
+        "date": {"type": "string",
+                 "description": "The collection date exactly as the caller said it, e.g. 'today', 'tomorrow', 'next Tuesday', '15 May'. Do NOT convert it into a numeric date - you do not know today's date."},
+        "time": {"type": "string",
+                 "description": "The collection time as the caller said it, e.g. '1pm', '13:00', 'half past two'."},
+        "caller_phone": {"type": "string",
+                         "description": "The caller's full mobile number, all digits, e.g. 07700900123."},
         "quote_gbp": {"type": "number"},
         "distance_miles": {"type": "number"},
         "booking_accepted": {"type": "boolean",
@@ -188,10 +202,12 @@ def report(a: dict) -> bool:
                        and (a.get("voice") or {}).get("voiceId") == VOICE["voiceId"],
                        f"{(a.get('voice') or {}).get('provider')}/"
                        f"{(a.get('voice') or {}).get('voiceId')}"),
-        "prompt    ": (prompt.startswith("You are the booking assistant"),
+        "prompt    ": (prompt == SYSTEM_PROMPT,
                        prompt[:45].replace("\n", " ")),
         "tools     ": (sorted(tools) == ["get_quote", "transfer_to_human"], tools),
-        "structured": (bool(structured.get("enabled")), "enabled"),
+        "structured": (bool(structured.get("enabled"))
+                       and structured.get("schema") == STRUCTURED_SCHEMA,
+                       "enabled, schema matches"),
     }
 
     all_ok = True

@@ -226,3 +226,34 @@ def test_sheet_write_preserves_the_leading_plus_on_phone_numbers(monkeypatch):
     phone = captured["row"][sheets.HEADERS.index("caller_phone")]
     assert phone == "+447367312558"
     assert phone.startswith("+"), "the country code was stripped again"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  "Today" must mean today
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  THE FAILURE (first real inbound phone call, 16 September 2026)
+#  The caller said "Today" at "1:00 PM". Vapi's post-call summary was asked for
+#  the date as YYYY-MM-DD, but that model does not know today's date, so it
+#  invented one: 2024-05-15. The roll-forward then placed a same-day job on the
+#  calendar for 15 May 2027.
+#
+#  The summary schema now asks for the caller's own words, and this server
+#  resolves them against the real clock. These tests pin the server half.
+
+def test_spoken_today_from_the_call_summary_books_today(client, no_external_calls):
+    from test_vapi_webhook import end_of_call_payload
+
+    body = client.post("/vapi/end-of-call",
+                       json=end_of_call_payload(date="Today", time="1:00 PM")).json()
+
+    assert body["booking_outcome"]["ok"] is True
+    booked = no_external_calls["calendar"][0]
+    assert booked["date_str"] == utils.london_now().date().isoformat()
+    assert booked["time_str"] == "13:00"
+
+
+@pytest.mark.parametrize("spoken", ["today", "tomorrow", "next Tuesday", "15 May"])
+def test_spoken_dates_never_resolve_into_the_past(spoken):
+    today = utils.london_now().date()
+    assert date.fromisoformat(utils.normalise_date(spoken)) >= today
