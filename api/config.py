@@ -56,10 +56,15 @@ def _env_int(name: str, default: int) -> int:
 MAX_WEIGHT_KG = 790.0        # SWB van hard capacity
 SURCHARGE_WEIGHT_KG = 400.0  # loads above this add 10%
 SURCHARGE_MULTIPLIER = 1.10
-BASE_FARE_GBP = 15.00
-RATE_UNDER_10_MI = 2.50
-RATE_UNDER_30_MI = 2.00
-RATE_OVER_30_MI = 1.75
+# Prices confirmed by the client (Jimmy Wangboje), 16 Sep 2026. There is no
+# starting charge - "the starting charge is mileage" - so a job costs its
+# miles times the rate for its distance band, applied to the WHOLE journey.
+BASE_FARE_GBP = 0.00
+RATE_UP_TO_45_MI = 3.00       # up to and including 45 miles
+RATE_UNDER_100_MI = 2.00      # over 45, under 100 miles
+RATE_100_MI_AND_OVER = 1.80   # 100 miles and over
+TIER_1_MAX_MILES = 45.0
+TIER_2_LIMIT_MILES = 100.0
 
 TIMEZONE = "Europe/London"
 BOOKING_DURATION_MINUTES = 60  # how long each job blocks the calendar for

@@ -110,19 +110,23 @@ class QuoteResponse(BaseModel):
 def calculate_price(distance_miles: float, weight_kg: float) -> float:
     """Tiered mileage pricing plus the heavy-load surcharge.
 
-    base GBP 15 + per-mile rate, where the rate steps DOWN as the job gets
-    longer (long runs are more efficient per mile):
-        <= 10 miles  GBP 2.50/mile
-        <= 30 miles  GBP 2.00/mile
-        >  30 miles  GBP 1.75/mile
+    No starting charge. The whole journey is charged at the rate for its
+    distance band, and the rate steps DOWN as the job gets longer:
+        <= 45 miles          GBP 3.00/mile
+        >  45, < 100 miles   GBP 2.00/mile
+        >= 100 miles         GBP 1.80/mile
     Loads over 400 kg add 10% for the extra handling.
+
+    Note the step at the 45-mile boundary: 45 miles costs GBP 135 but 46 miles
+    costs GBP 92, because the lower rate applies to the whole journey rather
+    than only to the miles past 45. That is how the client specified it.
     """
-    if distance_miles <= 10:
-        per_mile = config.RATE_UNDER_10_MI
-    elif distance_miles <= 30:
-        per_mile = config.RATE_UNDER_30_MI
+    if distance_miles <= config.TIER_1_MAX_MILES:
+        per_mile = config.RATE_UP_TO_45_MI
+    elif distance_miles < config.TIER_2_LIMIT_MILES:
+        per_mile = config.RATE_UNDER_100_MI
     else:
-        per_mile = config.RATE_OVER_30_MI
+        per_mile = config.RATE_100_MI_AND_OVER
 
     price = config.BASE_FARE_GBP + (distance_miles * per_mile)
 

@@ -37,12 +37,18 @@ ones that would otherwise ring out at 3am.
 
 | Rule | Value |
 |---|---|
-| Base fare | £15.00 |
-| Up to 10 miles | £2.50 per mile |
-| 10–30 miles | £2.00 per mile |
-| Over 30 miles | £1.75 per mile |
+| Starting charge | None — the price is the mileage |
+| Up to 45 miles | £3.00 per mile |
+| Over 45, under 100 miles | £2.00 per mile |
+| 100 miles and over | £1.80 per mile |
 | Loads over 400 kg | +10% |
 | Loads over 790 kg | Not quoted — transferred to a person |
+
+The rate applies to the **whole journey**, so a 20-mile job is 20 × £3 = £60.
+Confirmed by Jimmy Wangboje on 16 September 2026.
+
+One consequence worth knowing: because the lower rate covers the whole
+journey, a 45-mile job (£135) costs more than a 46-mile one (£92).
 
 These live in `api/config.py`. Changing them is a one-line edit; ask your
 developer.
@@ -55,7 +61,7 @@ developer.
 
 | Component | Evidence |
 |---|---|
-| Pricing engine | Live quote returns £385.11 for SW1A 1AA → M1 1AE (211 miles) — arithmetic checked by hand |
+| Pricing engine | Live quote returns £380.68 for SW1A 1AA → M1 1AE (211.49 miles × £1.80) — arithmetic checked by hand |
 | Google Maps mileage | Real Distance Matrix responses |
 | Cal.com calendar | Verified reachable, real availability responses |
 | Google Sheets log | Bookings written and read back live |

@@ -257,3 +257,29 @@ def test_spoken_today_from_the_call_summary_books_today(client, no_external_call
 def test_spoken_dates_never_resolve_into_the_past(spoken):
     today = utils.london_now().date()
     assert date.fromisoformat(utils.normalise_date(spoken)) >= today
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  The client's prices (confirmed 16 September 2026)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  The prices originally in the code came with the project brief and were never
+#  the client's. These pin his actual rates, including the 20-mile example he
+#  confirmed himself (20 x GBP 3 = GBP 60), so they cannot drift again unnoticed.
+
+from api.main import calculate_price  # noqa: E402
+
+
+@pytest.mark.parametrize("miles,kg,expected", [
+    (1,      50,  3.00),     # no starting charge
+    (20,     50,  60.00),    # the client's own worked example
+    (45,     50,  135.00),   # 45 is still in the GBP 3 band
+    (45.01,  50,  90.02),    # just over 45 drops to GBP 2 for the whole journey
+    (99.99,  50,  199.98),
+    (100,    50,  180.00),   # 100 and over is GBP 1.80
+    (250,    50,  450.00),
+    (20,     400, 60.00),    # exactly 400 kg is not "over 400"
+    (20,     401, 66.00),    # over 400 kg adds 10%
+])
+def test_client_pricing(miles, kg, expected):
+    assert calculate_price(miles, kg) == expected
