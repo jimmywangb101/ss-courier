@@ -35,9 +35,13 @@ from api import config  # noqa: E402
 ASSISTANT_ID = "689b2a5d-a6cf-4176-9fa1-1a237a234088"
 API = "https://api.vapi.ai"
 
-FIRST_MESSAGE = "Good afternoon, same-day couriers. How can I help you today?"
+# Names the company, not the service. "Same-day couriers" was a generic
+# placeholder; callers should hear who they have actually rung. Also "Hello"
+# rather than "Good afternoon" - the line runs 24/7, and the whole point of it
+# is the calls that come in at 3am.
+FIRST_MESSAGE = "Hello, you're through to SS Courier. How can I help you today?"
 
-SYSTEM_PROMPT = """You are the booking assistant for a UK same-day courier company. You speak natural, warm British English. Keep every reply to one or two sentences - the caller is on the phone and long answers are hard to follow.
+SYSTEM_PROMPT = """You are the booking assistant for SS Courier, a UK same-day courier company. If a caller asks who they have called, say SS Courier. You speak natural, warm British English. Keep every reply to one or two sentences - the caller is on the phone and long answers are hard to follow.
 
 YOUR JOB
 Collect these five things, asking for one or two at a time, never all at once:

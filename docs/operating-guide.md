@@ -9,7 +9,7 @@ requires you to touch the code.
 
 You do not have to do anything. The assistant handles the whole call:
 
-1. It answers with *"Good afternoon, same-day couriers. How can I help you
+1. It answers with *"Hello, you're through to SS Courier. How can I help you
    today?"*
 2. It asks for the collection postcode, the delivery postcode, the weight, and
    the date and time.
