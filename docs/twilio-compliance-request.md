@@ -1,5 +1,9 @@
 # Twilio compliance — request to lift the long-code provisioning restriction
 
+> **RESOLVED, 15 Sep 2026.** Twilio approved the account on ticket #29336617.
+> Number `+441634980038` was bought and connected to the assistant the same
+> day. Kept for the record, and in case a second number is ever needed.
+
 > **Before sending:** replace `<ACCOUNT SID>` in both places with the real
 > Account SID, which is on the front page of the Twilio Console (it starts
 > `AC…`). It is deliberately not written into this file — GitHub's secret

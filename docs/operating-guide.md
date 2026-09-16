@@ -7,7 +7,8 @@ requires you to touch the code.
 
 ## What happens when a customer rings
 
-You do not have to do anything. The assistant handles the whole call:
+Customers ring **01634 980038**. You do not have to do anything. The
+assistant handles the whole call:
 
 1. It answers with *"Hello, you're through to SS Courier. How can I help you
    today?"*
@@ -96,6 +97,20 @@ or the driver will not see the job.
 
 ---
 
+## Cancelling a booking
+
+Bookings are not connected to your website. They live in your calendar and
+your spreadsheet. To cancel one:
+
+1. **Calendar (Cal.com):** open the booking and press **Cancel**. This frees
+   the time slot.
+2. **Spreadsheet:** delete the row, or type **CANCELLED** next to it.
+3. **Let the customer know.** Nothing tells them automatically.
+
+The bookings dashboard only shows bookings; it cannot cancel them.
+
+---
+
 ## Understanding a booking reference
 
 Every booking gets one, like:
@@ -144,6 +159,11 @@ gets caught on the call.
 **If the calendar service is ever unreachable, it still takes the booking.**
 This is deliberate: it is better to risk a double booking you can sort out than
 to tell a paying customer you are full when you are not.
+
+**It does not check the calendar before agreeing a time.** If two customers
+ask for the same slot, the second customer still gets a confirmation, but the
+booking cannot go into the calendar. You will get an email saying it is **not
+on the calendar**, so you can rearrange it with them.
 
 **It never invents a price.** It only ever says the figure the pricing system
 returns. If it cannot work out the mileage, it apologises and hands the caller

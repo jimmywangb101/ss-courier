@@ -4,8 +4,8 @@ Everything needed to take ownership of this system: what it is, what runs where,
 every account involved, and the exact steps to transfer control.
 
 **Written for:** the client (SS Courier) and whoever maintains this next.
-**Status at handover:** built, deployed, live and tested — with one step
-outstanding, see below.
+**Status at handover:** built, deployed and live on **01634 980038**, tested
+end to end with real phone calls.
 
 ---
 
@@ -65,103 +65,39 @@ developer.
 | Google Maps mileage | Real Distance Matrix responses |
 | Cal.com calendar | Verified reachable, real availability responses |
 | Google Sheets log | Bookings written and read back live |
-| Customer SMS | **Carrier-confirmed `delivered`** to a real UK mobile |
+| Phone line | Real inbound calls to **01634 980038** answered, booked and confirmed (16 Sep 2026) |
+| Customer SMS | **Carrier-confirmed `delivered`** to a real UK mobile, from a real phone booking |
 | Customer + office email | **Delivered to inbox** (not spam) from `bookings@sscourierbookings.com` |
 | Email authentication | SPF, DKIM and DMARC all verified on the sending domain |
 | The AI assistant | Full booking taken end to end on a real call |
 | Admin dashboard | Password-protected, live |
-| Automated tests | 115 passing |
+| Automated tests | 129 passing |
 
-### ⚠️ Outstanding — the line is not yet reachable by phone
+### The phone line
 
-**No phone number is attached to the AI assistant.** Every call made so far has
-been a browser test call through the Vapi dashboard. Those calls prove the
-whole system works, but a customer dialling a number cannot reach it yet.
+**Customers ring `01634 980038`.** It is a UK local number (Medway) bought
+through Twilio and connected to the AI assistant in Vapi. Twilio passes every
+incoming call straight to the assistant.
 
-**Vapi cannot sell you a UK number.** Numbers created directly inside Vapi
-are free but **US only**. A `+44` number has to be bought elsewhere and
-imported. So the route is:
+It is the business's **public number**, for the Google profile, the website,
+the van and paperwork. The website quote widget shows it automatically once
+`CLIENT_PUBLIC_NUMBER` is set to `01634980038` in Render.
 
-**Step 1 — UK regulatory bundle — ALREADY DONE ✅**
+**The old number, `01474557719`,** is an internet phone line (VoIP) from a
+separate provider, which the client intends to cancel. Recommended: forward it
+to `01634 980038` for a few weeks first, so anyone who still has the old
+number gets through, then cancel it. Forwarding is set in that provider's
+online account, or by asking their support team.
 
-Bundle `BUbb9fe3176530f8b642ec1013eb286238` ("United Kingdom: Local —
-Business") is **approved**, for Salus Securities & Couriers Limited (UK CRN
-15750459), authorised representative Jimmy Wangboje.
-
-**The address on that approved bundle is 7 St John's Road, Gillingham, Kent,
-ME7 5NB.** This matters more than it looks. A UK number marked
-`address_requirements: local` can only be bought by a business with a proven
-address **in that same dialling area**, and the bundle carries the Gillingham
-address — so the number must be on the **01634 (Medway)** code.
-
-The account also holds a second validated address in Northfleet (DA11 8HN,
-which is the 01474 Gravesend area), but it is **not** the one attached to the
-approved bundle, so it does not help here.
-
-This is what the "Provisioning failed" error meant: a **London 020** number was
-selected, and London is neither Gillingham nor Northfleet. UK mobile numbers
-(`07…`) carry no address requirement at all and would sidestep the issue
-entirely.
-
-**Step 2 — ⚠️ BLOCKED: lift the account restriction (Twilio Compliance)**
-
-Buying any long-code number currently fails with:
-
-```
-22300 — Account is restricted from provisioning new long code Phone Numbers
-```
-
-This is an account-level hold applied by Twilio Compliance — routine on
-recently created accounts. It is **not** an address, bundle or funding problem:
-the bundle is approved, the account is full (non-trial) and holds a £34
-balance. Verified during diagnosis: a Gravesend landline and a UK mobile were
-both refused identically, so it blocks every long code.
-
-Only Twilio can lift it. **See `docs/twilio-compliance-request.md` for the
-ready-to-send request** to `verifymyaccount@twilio.com`.
-
-**Step 3 — Buy the number (Twilio), once the hold is lifted**
-
-Phone Numbers → Buy a number → United Kingdom → search `1634` → tick **Voice**
-→ select the **Gillingham ME7 5NB** address and the approved bundle → buy.
-Free at the time of writing: `+441634980582`, `+441634949983`,
-`+441634980994`, `+441634980195`.
-
-The number's area code does not need to match the published business line
-(01474), because customers never dial it — `01474557719` forwards to it. It
-only has to match the address on the approved bundle.
-
-**Step 4 — Import it into Vapi**
-
-Vapi dashboard → Phone Numbers → **Create Phone Number** → **Import Twilio**.
-It asks for three things:
-
-- the phone number, with country code
-- the **Twilio Account SID**
-- the **Twilio Auth Token**
-
-Then assign the **Riley** assistant to it.
-
-**Step 5 — Point the business line at it**
-
-Ask the existing phone provider to forward `01474557719` to the new Twilio
-number. Customers keep dialling the number they already know.
-
-> **Do not port `01474557719` into Twilio** to save the forwarding step, at
-> least not yet. Porting takes weeks and puts the live business line at risk
-> if anything goes wrong. Forwarding is reversible in minutes.
-
-**Want to test telephony before the bundle clears?** Create one of Vapi's free
-US numbers and ring it. It proves the whole inbound path works end to end
-while the UK paperwork is in the queue. It is not suitable for production —
-forwarding a UK landline to a US number bills international rates per minute.
-
-**A useful side effect.** Once calls arrive through the client's own Twilio
-account, the code can redirect a live call to a human directly via Twilio
-rather than relying on Vapi to do it. Both paths are already implemented in
-`api/main.py`; the Twilio one simply becomes available.
-
-Until a number is attached, the system is complete but idle.
+**How the number was obtained, for the record.** Vapi only issues US numbers,
+so a UK number has to be bought elsewhere and imported. Twilio requires an
+approved UK regulatory bundle, and a *local* number must match the dialling
+area of the address on that bundle. That is why it is an 01634 number: the
+approved bundle (`BUbb9fe3176530f8b642ec1013eb286238`) carries the Gillingham
+ME7 5NB address. New Twilio accounts are also blocked from buying numbers
+until Twilio's fraud team reviews them (error `22300`). That review completed
+on 15 Sep 2026, after the verification questions on ticket #29336617 were
+answered.
 
 ### Known limitations, stated plainly
 
@@ -175,6 +111,12 @@ Until a number is attached, the system is complete but idle.
   02:30. The agent reads the time back to confirm.
 - **SMS is one-way.** Texts are sent from the name `SSCourier`, not a number,
   so customers cannot reply to them. They are told to ring back instead.
+- **The assistant does not check the calendar before agreeing a time.** It
+  books whatever time the caller asks for. If that slot is already taken
+  (there is one van), Cal.com refuses the calendar entry and the office
+  receives an "ACTION NEEDED" email saying the booking is not on the calendar,
+  so it can be rearranged with the customer. Checking availability during the
+  call is a possible future improvement.
 - **The local booking file is wiped on each deploy.** This is safe because the
   Google Sheet is the real record; the local file is only a fallback for when
   Google is unreachable.
@@ -188,6 +130,7 @@ Until a number is attached, the system is complete but idle.
 | The application | Render — `courier-booking-api` | Frankfurt region, `starter` plan |
 | Live address | `https://courier-booking-api.onrender.com` | |
 | Admin dashboard | `…/admin` | Username `admin`, password sent separately |
+| Phone number | **01634 980038**, Twilio, connected to Vapi | The public number customers ring |
 | Website quote widget | `…/widget/quote` | Embed with one `<iframe>` line |
 | Health check | `…/health` | Shows which services are connected |
 | Source code | `github.com/jimmywangb101/ss-courier` | Private, already under the client's own GitHub account |
@@ -212,15 +155,18 @@ every service in the list.
 | Service | What it does | Logs in via | Cost |
 |---|---|---|---|
 | **Google account** | The hub — login and recovery for everything below | — | Free |
-| Google Cloud | Road mileage (Distance Matrix API) | Google sign-in | Free allowance covers normal volume |
-| Google Sheets | The bookings spreadsheet | Google sign-in | Free |
-| Vapi | The AI voice itself | Google sign-in | Pay as you go, ~£0.05–0.12/min |
-| Twilio | Confirmation texts | Email + password | ~4p per text (full account, no numbers owned) |
-| Cal.com | The booking calendar | Google sign-in | Free tier |
-| Resend | Confirmation emails | Google sign-in | Free up to 3,000/month |
-| Cloudflare | DNS for `sscourierbookings.com` | Email + password | Free (domain renewal is separate) |
-| Render | Hosting | Google/GitHub sign-in | ~$7/month |
+| Google Cloud | Road mileage (Distance Matrix API) | wangbjimmy70@gmail.com | Free allowance covers normal volume |
+| Google Sheets | The bookings spreadsheet | wangbjimmy70@gmail.com | Free |
+| Vapi | The AI voice itself | wangbjimmy70@gmail.com | Pay as you go, ~£0.05–0.12/min |
+| Twilio | The phone number and confirmation texts | wangbjimmy70@gmail.com | ~£1/month for the number, ~4p per text |
+| Cal.com | The booking calendar | wangbjimmy70@gmail.com | Free tier |
+| Resend | Confirmation emails | wangbjimmy70@gmail.com | Free up to 3,000/month |
+| Cloudflare | DNS for `sscourierbookings.com` | wangbjimmy70@gmail.com | Free (domain renewal is separate) |
+| Render | Hosting | wangbjimmy70@gmail.com | ~$7/month |
 | GitHub | Source code | Separate account `jimmywangb101` | Free |
+
+Where a site offers "Continue with Google", use it with the Google account
+above; otherwise the site has its own password, sent separately.
 
 ### Roughly what it costs to run
 
@@ -297,7 +243,14 @@ For each, generate a new key in the provider's dashboard, paste it into
 - [ ] `GOOGLE_MAPS_API_KEY` — Google Cloud → Credentials
 - [ ] `RESEND_API_KEY` — Resend → API Keys (keep it **sending-access only**)
 - [ ] `CAL_API_KEY` — Cal.com → Settings → Developer → API Keys
-- [ ] `TWILIO_AUTH_TOKEN` — Twilio Console → Account → API keys & tokens
+- [ ] `TWILIO_AUTH_TOKEN` — Twilio Console → Account → API keys & tokens.
+      **Two other places use this token and must be updated at the same time,
+      or they stop working:** (1) Vapi → Phone Numbers → 01634 980038, which
+      stores it to receive calls; (2) any other system sending texts from this
+      Twilio account. On 13 Sep 2026, texts beginning "SALUS: Booking SS-"
+      were sent from this account by a different system, most likely the
+      website's own booking system. Confirm with the client who runs it before
+      rotating.
 - [ ] `VAPI_PRIVATE_KEY` — Vapi → API Keys
 - [ ] `VAPI_SERVER_SECRET` — invent a new long random string; set the **same**
       value in Vapi (Assistant → Server → Secret) and in Render
@@ -317,12 +270,15 @@ integration `true` when you are done.
       Twilio ~£40/month
 - [ ] Confirm who receives the billing emails
 
-### Step 5 — Finish the phone line
+### Step 5 — Switch customers to the new number
 
-- [ ] Attach a phone number to the assistant (see §2)
-- [ ] Forward `01474557719` to it
-- [ ] Make a real test call and confirm a booking appears in the calendar,
-      the spreadsheet, and both inboxes
+- [x] Phone number `01634 980038` attached to the assistant
+- [x] Real test calls made; the booking reached the calendar, the spreadsheet,
+      the customer's phone and both inboxes
+- [x] Test bookings removed from the calendar and spreadsheet
+- [ ] Render → Environment → `CLIENT_PUBLIC_NUMBER` = `01634980038`
+- [ ] Google business profile and website updated to `01634 980038`
+- [ ] `01474557719` forwarded to `01634 980038` for a few weeks, then cancelled
 
 ---
 
@@ -351,6 +307,7 @@ The short version:
 | Texts stop arriving | Twilio balance, or sender ID blocked | Twilio Console |
 | Emails stop arriving | Resend monthly limit, or a DNS record removed | Resend → Domains |
 | Bookings missing from the calendar | Cal.com key expired or availability changed | Cal.com |
+| Calls to 01634 980038 do not connect | Vapi credit ran out, or the number was unassigned from the assistant | Vapi → Billing, Vapi → Phone Numbers |
 | Nothing works at all | Hosting down or card declined | Render → Logs |
 
 `https://courier-booking-api.onrender.com/health` is the fastest single check —
@@ -365,7 +322,7 @@ Full troubleshooting is in **`docs/setup-guide.md`** §12.
 **Included:**
 
 - The complete working system, deployed and running
-- Full source code, commented throughout, with 115 automated tests
+- Full source code, commented throughout, with 129 automated tests
 - This handover document
 - `docs/operating-guide.md` — plain-English daily use
 - `docs/setup-guide.md` — full technical setup and troubleshooting
@@ -376,7 +333,6 @@ Full troubleshooting is in **`docs/setup-guide.md`** §12.
 
 - Ongoing hosting, call and messaging costs — these are billed by the providers
   directly to the account holder
-- A phone number (see §2)
 - Individual user logins for the admin dashboard
 - Any ongoing support or maintenance beyond what has been separately agreed
 
@@ -390,7 +346,8 @@ Full troubleshooting is in **`docs/setup-guide.md`** §12.
 - [ ] All API keys rotated; `/health` shows every integration `true`
 - [ ] Billing moved to the company card, spending caps set
 - [ ] Admin dashboard password changed and tested
-- [ ] Phone number attached and a real test call completed
+- [x] Phone number attached and real test calls completed
+- [ ] Customers switched to 01634 980038 (profile, website, forwarding)
 - [ ] Client has read the operating guide
 
 Signed ......................................  Date ....................

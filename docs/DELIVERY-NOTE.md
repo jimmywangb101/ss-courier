@@ -15,7 +15,7 @@ and 1 view) — never in this email:**
 
 > **Subject: Your AI booking line — built, tested and ready to hand over**
 >
-> Hi [Client name],
+> Hi Jimmy,
 >
 > The AI booking line is finished. It has been built, deployed, and tested end
 > to end with real calls, real texts and real emails. This message explains
@@ -54,8 +54,8 @@ and 1 view) — never in this email:**
 > - **Confirmation emails delivered to the inbox**, not the spam folder — the
 >   sending domain is properly authenticated
 > - **Pricing checked by hand** — a London to Manchester job (211 miles) quotes
->   £385.11, which is correct for your rates
-> - **115 automated tests** that run before any future change goes live
+>   £380.68, which is correct for your rates
+> - **129 automated tests** that run before any future change goes live
 >
 > That testing was worth doing. It found three faults that would otherwise have
 > reached your customers — including one where a booking could end up in the
@@ -65,38 +65,18 @@ and 1 view) — never in this email:**
 >
 > ---
 >
-> ### One thing still to do
+> ### Your phone line
 >
-> **The line does not yet have a phone number attached.** Everything works —
-> the test bookings were made through the system's own test line — but a
-> customer dialling a number cannot reach it until a number is connected.
+> **Your booking line is 01634 980038.** It's live, and you've already tested
+> it yourself: calls are answered, jobs are booked at your prices, and the
+> confirmation text and emails arrive.
 >
-> Your business address verification is **already approved**, so that part is
-> behind us. What remains is a hold the phone provider places on newly opened
-> accounts, which stops any number being bought until they review the account.
-> Yours was opened eight days ago, so this is routine rather than a problem
-> with anything we have done.
+> To switch your customers over:
 >
-> **I have prepared the review request** — it explains who you are, your
-> company registration, and exactly how the line will be used (inbound calls
-> only, and a single confirmation text to customers who have just booked with
-> us — no marketing of any kind). It needs sending from the account's own email
-> address.
->
-> **What happens then:** once they lift the hold, I buy a Gravesend 01474
-> number, connect it to the AI, and ask your phone provider to forward
-> 01474557719 to it. **Your customers carry on dialling the number they already
-> know** — nothing changes for them.
->
-> I would not recommend moving 01474557719 itself over to the new provider,
-> even though it would save the forwarding step. That takes weeks and puts
-> your live business line at risk if anything goes wrong. Forwarding can be
-> undone in minutes.
->
-> If you would like to hear it on a real phone before the paperwork clears, I
-> can set up a temporary test number today at no cost. It would not be
-> suitable for customers, but it lets you ring in and hear exactly how it
-> handles a call.
+> 1. Put **01634 980038** on your Google business profile and your website
+> 2. Forward your old number, **01474557719**, to **01634 980038** for a few
+>    weeks, so anyone who still has the old number gets through
+> 3. Once calls to the old number stop, cancel it and stop paying that bill
 >
 > ---
 >
@@ -172,9 +152,8 @@ and 1 view) — never in this email:**
 >
 > ### What I need from you
 >
-> 1. **Send the phone provider's review request** — I have written it for you;
->    it needs to go from the account's own email address. This is the one thing
->    holding up the phone line, so it is worth doing first
+> 1. **Update your Google profile and website** to 01634 980038, and forward
+>    01474557719 to it
 > 2. **Half an hour on a call** to transfer the account — let me know when suits
 > 3. **Confirm the prices are right** before real customers hear them — worth a
 >    two-minute look at the table in the handover document
@@ -186,4 +165,4 @@ and 1 view) — never in this email:**
 > Thanks — it has been a genuinely interesting one to build.
 >
 > Best regards,
-> [Your name]
+> Mohammad Rabby
