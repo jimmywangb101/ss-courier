@@ -55,8 +55,8 @@ Once you have all five, call the get_quote function. Read out the price exactly 
 
 RULES
 - Never invent or estimate a price. Only ever say the figure get_quote returns.
-- If the load is over 790 kg, do not quote. Call transfer_to_human with reason "over_capacity".
-- If the caller asks for a person at any point, call transfer_to_human with reason "human_requested".
+- If the load is over 790 kg, do not quote. Use the transfer tool to put the caller through to the team.
+- If the caller asks for a person, for sales, or for the office at any point, use the transfer tool straight away. Do not ask them why first.
 - Only treat the booking as accepted once the caller clearly says yes.
 - After they accept, take their full name, mobile number and email address.
 - Read the date and time back to confirm before you finish.
@@ -91,23 +91,33 @@ TOOLS = [
             },
         },
     },
+    # NOT a "function" tool. A function tool can only hand text back for the
+    # assistant to read out - it cannot move a call. transfer_to_human used to
+    # be one, and our server answered it correctly with a destination block,
+    # but Vapi had no way to act on that: on a live call on 17 Sep 2026 the
+    # caller asked for sales, the assistant fell silent and the call dropped
+    # with an error. Twilio's logs showed no outbound call was ever placed.
+    #
+    # "transferCall" is the type Vapi actually performs transfers with. Vapi
+    # dials the destination itself, so no round trip to our server is needed
+    # and there is nothing of ours left to fail mid-transfer.
     {
-        "type": "function",
-        "function": {
-            "name": "transfer_to_human",
-            "description": "Hand the call to a human when the caller asks for a person or the load exceeds 790 kg.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "reason": {
-                        "type": "string",
-                        "enum": ["human_requested", "over_capacity"],
-                        "description": "Why the transfer is needed",
-                    }
-                },
-                "required": ["reason"],
-            },
-        },
+        "type": "transferCall",
+        "destinations": [
+            {
+                "type": "number",
+                "number": config.CLIENT_PHONE_NUMBER,
+                "description": (
+                    "The courier company's own team. Use this for any caller who "
+                    "asks to speak to a person, sales, or the office, and for "
+                    "loads over 790 kg that cannot be quoted."
+                ),
+                "message": (
+                    "Of course - let me put you through to one of the team now. "
+                    "Please hold the line."
+                ),
+            }
+        ],
     },
 ]
 
@@ -189,7 +199,10 @@ def report(a: dict) -> bool:
     model = a.get("model") or {}
     prompt = (model.get("messages") or [{}])[0].get("content", "")
     structured = (a.get("analysisPlan") or {}).get("structuredDataPlan") or {}
-    tools = [t.get("function", {}).get("name") for t in (model.get("tools") or [])]
+    # A transferCall tool has no function name of our choosing, so fall back
+    # to its type. Expected: ["get_quote", "transferCall"].
+    tools = [(t.get("function") or {}).get("name") or t.get("type")
+             for t in (model.get("tools") or [])]
 
     want_url = f"{config.NGROK_URL}/vapi/webhook"
     checks = {
@@ -204,7 +217,7 @@ def report(a: dict) -> bool:
                        f"{(a.get('voice') or {}).get('voiceId')}"),
         "prompt    ": (prompt == SYSTEM_PROMPT,
                        prompt[:45].replace("\n", " ")),
-        "tools     ": (sorted(tools) == ["get_quote", "transfer_to_human"], tools),
+        "tools     ": (sorted(tools) == ["get_quote", "transferCall"], tools),
         "structured": (bool(structured.get("enabled"))
                        and structured.get("schema") == STRUCTURED_SCHEMA,
                        "enabled, schema matches"),
