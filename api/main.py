@@ -1448,6 +1448,52 @@ async def admin_bookings(limit: int = 50) -> dict:
     }
 
 
+@app.post("/admin/bookings/{reference}/cancel", dependencies=[Depends(_require_admin)])
+async def admin_cancel_booking(reference: str, notify: bool = True) -> dict:
+    """Cancel a booking: free the calendar slot, mark the row, tell the customer.
+
+    `notify=false` skips the customer's text, for a booking cancelled by the
+    office for its own reasons. Cancelling is idempotent: cancelling an
+    already-cancelled booking succeeds and changes nothing, so a double click
+    on the dashboard cannot send two texts.
+    """
+    tidy = booking_ref.normalise_reference(reference)
+    if not booking_ref.is_valid_reference(tidy):
+        raise HTTPException(status_code=400, detail=f"'{reference}' is not a valid reference")
+
+    current = await sheets.find_booking(tidy)
+    if not current:
+        raise HTTPException(status_code=404, detail=f"No booking found for {tidy}")
+    if str(current.get("status", "")).lower() == "cancelled":
+        return {"ok": True, "reference": tidy, "already_cancelled": True, "steps": {}}
+
+    steps: dict[str, Any] = {}
+
+    if current.get("calcom_uid"):
+        steps["calendar"] = await calcom.cancel_booking(
+            str(current["calcom_uid"]), reason=f"Cancelled by the office ({tidy})")
+    else:
+        steps["calendar"] = {"ok": False, "skipped": True, "error": "no_calendar_entry"}
+
+    result = await sheets.update_booking(tidy, {"status": "cancelled"})
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=f"Could not cancel the booking: {result.get('error')}")
+    steps["spreadsheet"] = {"ok": True, "row": result.get("row")}
+
+    if notify and current.get("caller_phone"):
+        steps["sms"] = await twilio_sms.send_sms(
+            str(current["caller_phone"]),
+            f"Your collection {tidy} on {current.get('service_date')} at "
+            f"{current.get('service_time')} has been cancelled. "
+            f"Please call us if this is unexpected.",
+        )
+    else:
+        steps["sms"] = {"ok": False, "skipped": True}
+
+    log.info("Booking %s cancelled by the office", tidy)
+    return {"ok": True, "reference": tidy, "steps": steps, "booking": result.get("booking")}
+
+
 @app.get("/admin", response_class=HTMLResponse,
          dependencies=[Depends(_require_admin)])
 async def admin_dashboard() -> HTMLResponse:

@@ -239,6 +239,74 @@ async def find_booking(reference: str) -> dict[str, Any] | None:
     return None
 
 
+# ── Update one row in place ───────────────────────────────────────────────────
+
+async def update_booking(reference: str, updates: dict[str, Any]) -> dict:
+    """Change fields on an existing booking row, found by its reference.
+
+    Reads the sheet, locates the row, merges `updates` over what is already
+    there and writes the whole row back. Only keys in HEADERS are applied, so
+    a stray field from a web form cannot shift the columns.
+
+    Returns {"ok": True, "row": <sheet row number>, "booking": {...}} or an
+    error dict. Never raises.
+    """
+    if not config.SHEETS_ENABLED:
+        return {"ok": False, "skipped": True, "error": "sheets_not_configured"}
+
+    token = await _get_token()
+    if not token:
+        return {"ok": False, "error": "auth_failed"}
+
+    target = (reference or "").strip().upper()
+    if not target:
+        return {"ok": False, "error": "no_reference"}
+
+    headers = {"Authorization": f"Bearer {token}"}
+    base = f"{_API_ROOT}/{config.GOOGLE_SHEETS_ID}/values/{config.GOOGLE_SHEETS_TAB}"
+
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            read = await client.get(f"{base}!A:P", headers=headers)
+            if read.status_code >= 400:
+                return {"ok": False, "error": _error_detail(read)}
+
+            values = read.json().get("values", [])
+            if len(values) < 2:
+                return {"ok": False, "error": "not_found"}
+
+            header = [str(cell).strip() for cell in values[0]]
+            row_number, existing = None, None
+            for index, raw_row in enumerate(values[1:], start=2):  # row 1 is the header
+                if raw_row and str(raw_row[0]).strip().upper() == target:
+                    padded = list(raw_row) + [""] * (len(header) - len(raw_row))
+                    row_number, existing = index, dict(zip(header, padded))
+                    break
+
+            if row_number is None:
+                return {"ok": False, "error": "not_found"}
+
+            merged = {**existing, **{k: v for k, v in updates.items() if k in HEADERS}}
+            row = [_cell(merged.get(column)) for column in HEADERS]
+
+            write = await client.put(
+                f"{base}!A{row_number}:P{row_number}",
+                params={"valueInputOption": "RAW"},
+                headers=headers,
+                json={"values": [row]},
+            )
+        if write.status_code >= 400:
+            return {"ok": False, "error": _error_detail(write)}
+
+        log.info("Booking %s updated in Sheets (row %s): %s",
+                 target, row_number, ", ".join(sorted(updates)))
+        return {"ok": True, "row": row_number, "booking": merged}
+
+    except httpx.HTTPError as exc:
+        log.exception("Sheets update network error")
+        return {"ok": False, "error": f"network_error: {exc}"}
+
+
 # ── Sheet setup helper ────────────────────────────────────────────────────────
 
 async def ensure_header_row() -> dict:
