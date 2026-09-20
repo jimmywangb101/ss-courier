@@ -125,7 +125,7 @@ Collection from   : {pickup}
 Delivery to       : {dropoff}
 Load weight       : {weight_kg:g} kg
 Distance          : {miles}
-Total price       : GBP {quote_gbp:.2f}
+Total price       : GBP {quote_gbp:.2f} (including VAT)
 
 Our driver will call you shortly before arrival. If anything changes, call us
 and quote your reference number.
@@ -140,7 +140,7 @@ Thank you for your booking.
         _row("Delivery to", dropoff),
         _row("Load weight", f"{weight_kg:g} kg"),
         _row("Distance", miles),
-        _row("Total price", f"<strong>GBP {quote_gbp:.2f}</strong>"),
+        _row("Total price", f"<strong>GBP {quote_gbp:.2f}</strong> (including VAT)"),
     ])
 
     html = f"""<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;color:#1f2937">

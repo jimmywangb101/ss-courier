@@ -156,7 +156,7 @@ def build_booking_sms(*, reference: str, pickup: str, dropoff: str,
         f"{date_str} at {time_str}\n"
         f"From: {_short(pickup)}\n"
         f"To: {_short(dropoff)}\n"
-        f"Price: GBP {quote_gbp:.2f}\n"
+        f"Price: GBP {quote_gbp:.2f} inc VAT\n"
         f"Questions? Call us back and quote your reference."
     )
 

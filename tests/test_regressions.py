@@ -271,16 +271,33 @@ from api.main import calculate_price  # noqa: E402
 
 
 @pytest.mark.parametrize("miles,kg,expected", [
-    (1,      50,  4.00),      # no starting charge
-    (20,     50,  80.00),
-    (35,     50,  140.00),    # the top of the band the client quoted as "1 to 35"
-    (45,     50,  180.00),    # 45 is still in the GBP 4 band (confirmed with him)
-    (45.01,  50,  78.77),     # just over 45 drops to GBP 1.75 for the whole journey
-    (99.99,  50,  174.98),
-    (100,    50,  150.00),    # 100 and over is GBP 1.50
-    (250,    50,  375.00),
-    (20,     400, 80.00),     # exactly 400 kg is not "over 400"
-    (20,     401, 88.00),     # over 400 kg adds 10%
+    # (miles * 1.75 + 10 call-out) * 1.20 VAT
+    (0,      50,  12.00),     # the call-out fee alone, plus VAT
+    (1,      50,  14.10),
+    (20,     50,  54.00),
+    (45,     50,  106.50),    # no step here any more: the rate is flat
+    (46,     50,  108.60),    # one mile further now costs more, not less
+    (100,    50,  222.00),
+    (250,    50,  537.00),
+    (20,     400, 54.00),     # exactly 400 kg is not "over 400"
+    (20,     401, 59.40),     # over 400 kg adds 10%, before VAT
 ])
+
+
 def test_client_pricing(miles, kg, expected):
     assert calculate_price(miles, kg) == expected
+
+
+def test_the_45_mile_price_step_is_gone():
+    """The old banded rates made a 46-mile job cheaper than a 45-mile one,
+    because the lower rate applied to the whole journey. A flat rate has no
+    boundary to jump at, so price must now only ever rise with distance."""
+    prices = [calculate_price(miles, 50) for miles in range(1, 200)]
+    assert prices == sorted(prices)
+
+
+def test_vat_is_twenty_percent_not_nought_point_two():
+    """The client wrote "vat of 20% which would be 0.2%". At 0.2% a GBP 45 job
+    would gain about 9p. This pins the real rate."""
+    net = 20 * 1.75 + 10
+    assert calculate_price(20, 50) == round(net * 1.2, 2)

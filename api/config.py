@@ -56,19 +56,24 @@ def _env_int(name: str, default: int) -> int:
 MAX_WEIGHT_KG = 790.0        # SWB van hard capacity
 SURCHARGE_WEIGHT_KG = 400.0  # loads above this add 10%
 SURCHARGE_MULTIPLIER = 1.10
-# Prices set by the client (Jimmy Wangboje); rates revised 21 Sep 2026. There
-# is no starting charge - "the starting charge is mileage" - so a job costs its
-# miles times the rate for its distance band, applied to the WHOLE journey.
+# Prices set by the client (Jimmy Wangboje), 21 Sep 2026. The distance bands
+# were dropped in favour of one flat rate for every job:
 #
-# He gave the bands as "1 to 35 miles GBP 4", "45 above to 99 GBP 1.75" and
-# "100 above GBP 1.50", which leaves 35-45 miles uncovered. Confirmed: the
-# GBP 4 rate runs to 45, so the band boundary stays where it was.
+#     (miles x rate + call-out fee) [+10% over 400 kg] + VAT
+#
+# Dropping the bands also removes the price step they created. Under the old
+# rates a 45-mile job cost GBP 180 and a 46-mile one GBP 80.50, because the
+# cheaper rate applied to the whole journey; with a single rate there is no
+# boundary left to jump at.
+#
+# VAT: the client wrote "vat of 20% which would be 0.2%". 0.2% would add about
+# 9p to a GBP 45 job, so this is the standard UK VAT rate of 20%.
+PER_MILE_RATE_GBP = 1.75      # every mile, whatever the distance
+CALL_OUT_FEE_GBP = 10.00      # added once to every quote
+VAT_RATE = 0.20               # 20%, applied last, so quotes are VAT-inclusive
+
+# Kept for the pricing maths below; there is no separate standing charge now.
 BASE_FARE_GBP = 0.00
-RATE_UP_TO_45_MI = 4.00       # up to and including 45 miles
-RATE_UNDER_100_MI = 1.75      # over 45, under 100 miles
-RATE_100_MI_AND_OVER = 1.50   # 100 miles and over
-TIER_1_MAX_MILES = 45.0
-TIER_2_LIMIT_MILES = 100.0
 
 TIMEZONE = "Europe/London"
 BOOKING_DURATION_MINUTES = 60  # how long each job blocks the calendar for

@@ -108,33 +108,24 @@ class QuoteResponse(BaseModel):
 
 
 def calculate_price(distance_miles: float, weight_kg: float) -> float:
-    """Tiered mileage pricing plus the heavy-load surcharge.
+    """One flat mileage rate, a call-out fee, the heavy-load surcharge, and VAT.
 
-    No starting charge. The whole journey is charged at the rate for its
-    distance band, and the rate steps DOWN as the job gets longer:
-        <= 45 miles          GBP 4.00/mile
-        >  45, < 100 miles   GBP 1.75/mile
-        >= 100 miles         GBP 1.50/mile
-    Loads over 400 kg add 10% for the extra handling.
+        (miles x GBP 1.75 + GBP 10) [+10% over 400 kg] + 20% VAT
 
-    Note the step at the 45-mile boundary, which these rates make steeper than
-    before: 45 miles costs GBP 180 but 46 miles costs GBP 80.50, because the
-    lower rate applies to the whole journey rather than only to the miles past
-    45. That is how the client specified it, and it was raised with him.
+    The order matters. The call-out fee is part of the service and is
+    surcharged and taxed like the rest of it, and VAT is applied last to the
+    whole bill, which is how a UK invoice is built up.
+
+    The figure returned is what the customer actually pays, VAT included. That
+    is deliberate: it is read out on the phone and texted to them, and a price
+    that later grew by 20% would be a complaint waiting to happen.
     """
-    if distance_miles <= config.TIER_1_MAX_MILES:
-        per_mile = config.RATE_UP_TO_45_MI
-    elif distance_miles < config.TIER_2_LIMIT_MILES:
-        per_mile = config.RATE_UNDER_100_MI
-    else:
-        per_mile = config.RATE_100_MI_AND_OVER
-
-    price = config.BASE_FARE_GBP + (distance_miles * per_mile)
+    net = config.BASE_FARE_GBP + (distance_miles * config.PER_MILE_RATE_GBP) + config.CALL_OUT_FEE_GBP
 
     if weight_kg > config.SURCHARGE_WEIGHT_KG:
-        price *= config.SURCHARGE_MULTIPLIER
+        net *= config.SURCHARGE_MULTIPLIER
 
-    return round(price, 2)
+    return round(net * (1 + config.VAT_RATE), 2)
 
 
 # Google Maps statuses that mean OUR account is misconfigured, as opposed to
@@ -513,7 +504,8 @@ async def vapi_quote(request: Request) -> dict:
         f"Lovely, I can get that collected for you. It's {utils.speak_miles(distance)} "
         f"from the pickup to the drop-off, and the price for that job would be "
         f"{utils.speak_money(price)}"
-        + (", which includes a small surcharge for the heavier load. " if surcharge else ". ")
+        + (", including VAT and a small surcharge for the heavier load. "
+           if surcharge else ", including VAT. ")
         + f"That's for {utils.speak_date(date_str)} at {utils.speak_time(time_str)}. "
         "Would you like me to book that in for you?"
     )
