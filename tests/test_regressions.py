@@ -271,15 +271,16 @@ from api.main import calculate_price  # noqa: E402
 
 
 @pytest.mark.parametrize("miles,kg,expected", [
-    (1,      50,  3.00),     # no starting charge
-    (20,     50,  60.00),    # the client's own worked example
-    (45,     50,  135.00),   # 45 is still in the GBP 3 band
-    (45.01,  50,  90.02),    # just over 45 drops to GBP 2 for the whole journey
-    (99.99,  50,  199.98),
-    (100,    50,  180.00),   # 100 and over is GBP 1.80
-    (250,    50,  450.00),
-    (20,     400, 60.00),    # exactly 400 kg is not "over 400"
-    (20,     401, 66.00),    # over 400 kg adds 10%
+    (1,      50,  4.00),      # no starting charge
+    (20,     50,  80.00),
+    (35,     50,  140.00),    # the top of the band the client quoted as "1 to 35"
+    (45,     50,  180.00),    # 45 is still in the GBP 4 band (confirmed with him)
+    (45.01,  50,  78.77),     # just over 45 drops to GBP 1.75 for the whole journey
+    (99.99,  50,  174.98),
+    (100,    50,  150.00),    # 100 and over is GBP 1.50
+    (250,    50,  375.00),
+    (20,     400, 80.00),     # exactly 400 kg is not "over 400"
+    (20,     401, 88.00),     # over 400 kg adds 10%
 ])
 def test_client_pricing(miles, kg, expected):
     assert calculate_price(miles, kg) == expected

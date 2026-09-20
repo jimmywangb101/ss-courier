@@ -38,17 +38,19 @@ ones that would otherwise ring out at 3am.
 | Rule | Value |
 |---|---|
 | Starting charge | None — the price is the mileage |
-| Up to 45 miles | £3.00 per mile |
-| Over 45, under 100 miles | £2.00 per mile |
-| 100 miles and over | £1.80 per mile |
+| Up to 45 miles | £4.00 per mile |
+| Over 45, under 100 miles | £1.75 per mile |
+| 100 miles and over | £1.50 per mile |
 | Loads over 400 kg | +10% |
 | Loads over 790 kg | Not quoted — transferred to a person |
 
-The rate applies to the **whole journey**, so a 20-mile job is 20 × £3 = £60.
-Confirmed by Jimmy Wangboje on 16 September 2026.
+The rate applies to the **whole journey**, so a 20-mile job is 20 × £4 = £80.
+Rates revised by Jimmy Wangboje on 21 September 2026.
 
 One consequence worth knowing: because the lower rate covers the whole
-journey, a 45-mile job (£135) costs more than a 46-mile one (£92).
+journey, a 45-mile job (£180) costs more than a 46-mile one (£80.50). He gave
+the bands as 1–35, 45–99 and 100+, leaving 35–45 uncovered; he confirmed the
+£4 rate runs to 45.
 
 These live in `api/config.py`. Changing them is a one-line edit; ask your
 developer.

@@ -38,13 +38,13 @@ def test_quote_returns_speech_and_price(client):
 
     body = response.json()
     assert body["action"] == "quote"
-    # 9.43 miles * GBP 3.00 = 28.29, no starting charge, no surcharge under 400 kg
-    assert body["quote_gbp"] == 28.29
+    # 9.43 miles * GBP 4.00 = 37.72, no starting charge, no surcharge under 400 kg
+    assert body["quote_gbp"] == 37.72
     assert body["distance_miles"] == 9.43
 
     speech = body["result"]
     assert isinstance(speech, str) and len(speech) > 20
-    assert "28 pounds 29" in speech          # spoken, not "28.29"
+    assert "37 pounds 72" in speech          # spoken, not "37.72"
     assert "book that in" in speech.lower()  # asks for the sale
 
 
@@ -53,7 +53,7 @@ def test_quote_supports_both_vapi_formats(client):
     modern = client.post("/vapi/quote", json=tool_call_payload("get_quote", QUOTE_ARGS))
     legacy = client.post("/vapi/quote", json=legacy_call_payload("get_quote", QUOTE_ARGS))
 
-    assert modern.json()["quote_gbp"] == legacy.json()["quote_gbp"] == 28.29
+    assert modern.json()["quote_gbp"] == legacy.json()["quote_gbp"] == 37.72
     # Only the modern format echoes a toolCallId back.
     assert modern.json()["results"][0]["toolCallId"] == "tool_1"
     assert "results" not in legacy.json()
@@ -82,7 +82,7 @@ def test_weight_surcharge_boundary(client, weight, expected_surcharge):
     args = {**QUOTE_ARGS, "weight_kg": weight}
     body = client.post("/vapi/quote", json=tool_call_payload("get_quote", args)).json()
 
-    base_price = 28.29  # 9.43 * 3.00
+    base_price = 37.72  # 9.43 * 4.00
     if expected_surcharge:
         assert body["quote_gbp"] > base_price
         assert "surcharge" in body["result"].lower()

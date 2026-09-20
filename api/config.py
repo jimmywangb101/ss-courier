@@ -56,13 +56,17 @@ def _env_int(name: str, default: int) -> int:
 MAX_WEIGHT_KG = 790.0        # SWB van hard capacity
 SURCHARGE_WEIGHT_KG = 400.0  # loads above this add 10%
 SURCHARGE_MULTIPLIER = 1.10
-# Prices confirmed by the client (Jimmy Wangboje), 16 Sep 2026. There is no
-# starting charge - "the starting charge is mileage" - so a job costs its
+# Prices set by the client (Jimmy Wangboje); rates revised 21 Sep 2026. There
+# is no starting charge - "the starting charge is mileage" - so a job costs its
 # miles times the rate for its distance band, applied to the WHOLE journey.
+#
+# He gave the bands as "1 to 35 miles GBP 4", "45 above to 99 GBP 1.75" and
+# "100 above GBP 1.50", which leaves 35-45 miles uncovered. Confirmed: the
+# GBP 4 rate runs to 45, so the band boundary stays where it was.
 BASE_FARE_GBP = 0.00
-RATE_UP_TO_45_MI = 3.00       # up to and including 45 miles
-RATE_UNDER_100_MI = 2.00      # over 45, under 100 miles
-RATE_100_MI_AND_OVER = 1.80   # 100 miles and over
+RATE_UP_TO_45_MI = 4.00       # up to and including 45 miles
+RATE_UNDER_100_MI = 1.75      # over 45, under 100 miles
+RATE_100_MI_AND_OVER = 1.50   # 100 miles and over
 TIER_1_MAX_MILES = 45.0
 TIER_2_LIMIT_MILES = 100.0
 

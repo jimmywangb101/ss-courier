@@ -112,14 +112,15 @@ def calculate_price(distance_miles: float, weight_kg: float) -> float:
 
     No starting charge. The whole journey is charged at the rate for its
     distance band, and the rate steps DOWN as the job gets longer:
-        <= 45 miles          GBP 3.00/mile
-        >  45, < 100 miles   GBP 2.00/mile
-        >= 100 miles         GBP 1.80/mile
+        <= 45 miles          GBP 4.00/mile
+        >  45, < 100 miles   GBP 1.75/mile
+        >= 100 miles         GBP 1.50/mile
     Loads over 400 kg add 10% for the extra handling.
 
-    Note the step at the 45-mile boundary: 45 miles costs GBP 135 but 46 miles
-    costs GBP 92, because the lower rate applies to the whole journey rather
-    than only to the miles past 45. That is how the client specified it.
+    Note the step at the 45-mile boundary, which these rates make steeper than
+    before: 45 miles costs GBP 180 but 46 miles costs GBP 80.50, because the
+    lower rate applies to the whole journey rather than only to the miles past
+    45. That is how the client specified it, and it was raised with him.
     """
     if distance_miles <= config.TIER_1_MAX_MILES:
         per_mile = config.RATE_UP_TO_45_MI
