@@ -193,6 +193,16 @@ def fetch() -> dict:
     return resp.json()
 
 
+def _transfer_number(model: dict) -> str:
+    """The number the assistant's transferCall tool dials, or "" if unset."""
+    for tool in model.get("tools") or []:
+        if tool.get("type") == "transferCall":
+            for destination in tool.get("destinations") or []:
+                if destination.get("number"):
+                    return str(destination["number"])
+    return ""
+
+
 def report(a: dict) -> bool:
     """Print the live config. Returns True if it matches what we want."""
     server = a.get("server") or {}
@@ -218,6 +228,11 @@ def report(a: dict) -> bool:
         "prompt    ": (prompt == SYSTEM_PROMPT,
                        prompt[:45].replace("\n", " ")),
         "tools     ": (sorted(tools) == ["get_quote", "transferCall"], tools),
+        # Compare the transfer DESTINATION too, not just that a transfer tool
+        # exists. Changing the number the assistant hands callers to is exactly
+        # the kind of edit that must not be reported as "already correct".
+        "transfer  ": (_transfer_number(model) == config.CLIENT_PHONE_NUMBER,
+                       _transfer_number(model) or "(none set)"),
         "structured": (bool(structured.get("enabled"))
                        and structured.get("schema") == STRUCTURED_SCHEMA,
                        "enabled, schema matches"),
