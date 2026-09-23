@@ -301,3 +301,73 @@ def test_vat_is_twenty_percent_not_nought_point_two():
     would gain about 9p. This pins the real rate."""
     net = 20 * 1.75 + 10
     assert calculate_price(20, 50) == round(net * 1.2, 2)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  A transferred caller must leave a trace
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  THE FAILURE (22 September 2026, a real customer)
+#  A customer priced a job on the website, rang, and the assistant transferred
+#  them to the office. The transfer worked and the call was answered. But a
+#  transferred caller produces no booking, no spreadsheet row and no reference,
+#  so nothing anywhere recorded that they had ever rung. Nobody called back.
+#  The first the office heard of it was the customer's voicemail, which reached
+#  them by being played down the booking line days later.
+
+def _forwarded_call(**overrides):
+    body = {"message": {
+        "type": "end-of-call-report",
+        "endedReason": "assistant-forwarded-call",
+        "call": {"id": "call_forwarded_1", "customer": {"number": "+447939468082"}},
+        "durationSeconds": 78,
+        "summary": "Caller asked to speak to a person about a parcel to Luton.",
+        "transcript": "AI: Hello, you're through to SS Courier.\nUser: Can I speak to someone?",
+        "analysis": {"structuredData": {"booking_accepted": False}},
+    }}
+    body["message"].update(overrides)
+    return body
+
+
+def test_a_transferred_caller_is_emailed_to_the_office(client, no_external_calls):
+    response = client.post("/vapi/end-of-call", json=_forwarded_call())
+    assert response.status_code == 200
+
+    alerts = [e for e in no_external_calls["email"] if "TRANSFERRED" in e["subject"].upper()]
+    assert len(alerts) == 1
+
+    alert = alerts[0]
+    assert alert["to"] == config.CLIENT_EMAIL
+    # Everything needed to ring them back must be in the email itself.
+    assert "+447939468082" in alert["subject"]
+    assert "+447939468082" in alert["text"]
+    assert "parcel to Luton" in alert["text"]
+
+
+@pytest.mark.parametrize("reason", [
+    "assistant-forwarded-call",
+    "assistant-transferred-call",   # Vapi has renamed ended reasons before
+    "customer-forwarded",
+])
+def test_every_wording_of_a_transfer_is_caught(client, no_external_calls, reason):
+    client.post("/vapi/end-of-call", json=_forwarded_call(endedReason=reason))
+    assert [e for e in no_external_calls["email"] if "TRANSFERRED" in e["subject"].upper()]
+
+
+def test_an_ordinary_call_raises_no_transfer_alert(client, no_external_calls):
+    """These must stay rare, or the office learns to ignore them."""
+    client.post("/vapi/end-of-call", json=_forwarded_call(endedReason="customer-ended-call"))
+    assert not [e for e in no_external_calls["email"] if "TRANSFERRED" in e["subject"].upper()]
+
+
+def test_a_transfer_that_still_booked_raises_no_alert(client, no_external_calls):
+    """If the booking completed, the office already gets the NEW BOOKING email;
+    a second one would just be noise."""
+    body = _forwarded_call()
+    body["message"]["analysis"]["structuredData"] = {
+        "booking_accepted": True, "caller_name": "Sarah", "caller_phone": "07700900123",
+        "pickup_address": "ME7 4RQ", "dropoff_address": "ME4 4TU",
+        "weight_kg": 20, "quote_gbp": 54.0, "date": "today", "time": "2pm",
+    }
+    client.post("/vapi/end-of-call", json=body)
+    assert not [e for e in no_external_calls["email"] if "TRANSFERRED" in e["subject"].upper()]

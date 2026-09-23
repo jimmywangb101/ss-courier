@@ -638,6 +638,13 @@ async def vapi_end_of_call(request: Request) -> dict:
     log.info("Call %s ended (%s) - accepted=%s - booking=%s",
              call_id, record["ended_reason"], accepted, booking_outcome.get("ok"))
 
+    # A transferred caller leaves no booking, no spreadsheet row and no
+    # reference, so without this email there is no trace of them at all. One
+    # was lost that way: the transfer worked, the call was answered, and the
+    # only record that a customer had ever rung was a voicemail days later.
+    if _was_transferred(record["ended_reason"]) and not accepted:
+        await _alert_transferred_call(record)
+
     return {
         "ok": True,
         "call_id": call_id,
@@ -646,6 +653,32 @@ async def vapi_end_of_call(request: Request) -> dict:
         "booking_data": booking,
         "booking_outcome": booking_outcome,
     }
+
+
+def _was_transferred(ended_reason: str) -> bool:
+    """Did this call end by being handed to a human?
+
+    Vapi reports "assistant-forwarded-call" today, but it has renamed ended
+    reasons before, so match on the words rather than the exact string.
+    """
+    reason = (ended_reason or "").lower()
+    return "forward" in reason or "transfer" in reason
+
+
+async def _alert_transferred_call(record: dict[str, Any]) -> None:
+    """Email the office about a caller the assistant handed over. Never raises."""
+    try:
+        subject, text, html = email_sender.build_transferred_call_alert(
+            caller_phone=str(record.get("caller_phone") or ""),
+            summary=str(record.get("summary") or ""),
+            transcript=str(record.get("transcript") or ""),
+            when=str(record.get("ended_at") or utils.london_now().isoformat(timespec="seconds")),
+            duration_seconds=float(record.get("duration_seconds") or 0),
+        )
+        result = await email_sender.send_email(config.CLIENT_EMAIL, subject, text, html)
+        log.info("Transferred-call alert for %s: %s", record.get("caller_phone"), result.get("ok"))
+    except Exception:  # noqa: BLE001 - must never break the reply to Vapi
+        log.exception("Could not send the transferred-call alert")
 
 
 def _booking_data_problem(booking: dict) -> str | None:
@@ -1214,7 +1247,8 @@ _WIDGET_HTML = """<!doctype html>
 <body>
 <div class="card">
   <h1>Get an instant delivery quote</h1>
-  <p class="sub">Same-day courier, 24 hours a day, 7 days a week.</p>
+  <p class="sub">Same-day courier, 24 hours a day, 7 days a week.
+     This gives you a price only &mdash; call us to book.</p>
 
   <form id="quoteForm" novalidate>
     <div class="field">
@@ -1237,7 +1271,7 @@ _WIDGET_HTML = """<!doctype html>
   </form>
 
   <div class="result" id="result"></div>
-  <p class="foot">Prices include VAT where applicable. Booking is confirmed by phone.</p>
+  <p class="foot">Prices include VAT. Bookings are only confirmed by phone.</p>
 </div>
 
 <script>
@@ -1326,7 +1360,10 @@ _WIDGET_HTML = """<!doctype html>
           showResult(
             '<p class="price">\\u00A3' + Number(data.quote_gbp).toFixed(2) + '</p>' +
             '<p class="meta">Approximately ' + Number(data.distance_miles).toFixed(1) +
-            ' miles</p>' + callButtonHtml(),
+            ' miles</p>' +
+            '<p class="msg"><strong>This is a price, not a booking.</strong> ' +
+            'Nothing has been reserved yet &mdash; ring us to book your collection.</p>' +
+            callButtonHtml(),
             "quote"
           );
         } else if (data.action === "redirect") {

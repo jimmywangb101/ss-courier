@@ -208,6 +208,55 @@ Price       : GBP {quote_gbp:.2f}
     return subject, text, html
 
 
+def build_transferred_call_alert(*, caller_phone: str, summary: str, transcript: str,
+                                 when: str, duration_seconds: float) -> tuple[str, str, str]:
+    """Tells the office about a caller the assistant handed to a human.
+
+    Written because a real customer was lost this way: the assistant
+    transferred them correctly, the call was answered, and then nothing
+    recorded it anywhere. When the office did not call back, the only trace
+    was a voicemail days later. A transferred caller has no booking, no
+    spreadsheet row and no reference - so without this email there is nothing
+    at all to follow up.
+    """
+    caller = caller_phone or "withheld"
+    subject = f"CALL TRANSFERRED TO YOU - {caller}"
+
+    text = f"""The assistant transferred a caller to you. No booking was taken,
+so there is nothing in the spreadsheet or the calendar for this one.
+
+Caller   : {caller}
+When     : {when}
+Length   : {duration_seconds:.0f} seconds
+
+What they wanted:
+{summary or "(the assistant did not summarise this call)"}
+
+If you did not manage to speak to them, call them back on {caller}.
+
+--- what was said before the transfer ---
+{(transcript or "(no transcript)")[:1500]}
+"""
+
+    html = f"""<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;color:#1f2937">
+  <h2 style="color:#a8570a;margin:0 0 6px">Call transferred to you</h2>
+  <p style="margin:0 0 16px;color:#6b7280">No booking was taken, so this caller
+     is not in your spreadsheet or calendar.</p>
+  <table cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px">
+    {_row("Caller", f'<a href="tel:{caller}"><strong>{caller}</strong></a>')}
+    {_row("When", when)}
+    {_row("Length", f"{duration_seconds:.0f} seconds")}
+  </table>
+  <p style="font-size:14px"><strong>What they wanted:</strong><br>
+     {summary or "(the assistant did not summarise this call)"}</p>
+  <p style="font-size:14px">If you did not manage to speak to them, call them
+     back on <a href="tel:{caller}">{caller}</a>.</p>
+  <pre style="background:#f6f9fd;padding:12px;border-radius:6px;font-size:12.5px;white-space:pre-wrap">{(transcript or "(no transcript)")[:1500]}</pre>
+</div>"""
+
+    return subject, text, html
+
+
 def build_failure_alert(*, reason: str, payload: dict) -> tuple[str, str, str]:
     """Alert sent to the client when a booking could NOT be completed, so a
     human can rescue it. Called from api/main.py's _auto_create_booking()
