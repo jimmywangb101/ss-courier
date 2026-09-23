@@ -132,7 +132,7 @@ answered.
 | Live address | `https://courier-booking-api.onrender.com` | |
 | Admin dashboard | `…/admin` | Username `admin`, password sent separately |
 | Phone number | **01634 980038**, Twilio, connected to Vapi | The public number customers ring |
-| Website quote widget | `…/widget/quote` | Embed with one `<iframe>` line |
+| Website quote widget | `…/widget/quote` | Prices a job only. The website's own separate booking system handles online bookings |
 | Health check | `…/health` | Shows which services are connected |
 | Source code | `github.com/jimmywangb101/ss-courier` | Private, already under the client's own GitHub account |
 | AI assistant | Vapi — "Riley", `689b2a5d-a6cf-4176-9fa1-1a237a234088` | |
@@ -247,11 +247,11 @@ For each, generate a new key in the provider's dashboard, paste it into
 - [ ] `TWILIO_AUTH_TOKEN` — Twilio Console → Account → API keys & tokens.
       **Two other places use this token and must be updated at the same time,
       or they stop working:** (1) Vapi → Phone Numbers → 01634 980038, which
-      stores it to receive calls; (2) any other system sending texts from this
-      Twilio account. On 13 Sep 2026, texts beginning "SALUS: Booking SS-"
-      were sent from this account by a different system, most likely the
-      website's own booking system. Confirm with the client who runs it before
-      rotating.
+      stores it to receive calls; (2) **the website's own booking system**,
+      which shares this Twilio account and sends the "SALUS: Booking SS-..."
+      confirmation texts. Confirmed by the client on 23 Sep 2026. Whoever
+      maintains the website must be given the new token at the same time, or
+      their booking confirmations stop going out.
 - [ ] `VAPI_PRIVATE_KEY` — Vapi → API Keys
 - [ ] `VAPI_SERVER_SECRET` — invent a new long random string; set the **same**
       value in Vapi (Assistant → Server → Secret) and in Render

@@ -1193,8 +1193,16 @@ async def quote_widget() -> HTMLResponse:
     Deliberately asks for only pickup, dropoff and weight - /quote's pricing
     does not use date/time at all (only /booking/create and availability do),
     so there is nothing to gain by asking a website visitor for them here.
-    A quote is not a booking: the call to action is "ring us to book it in",
-    matching how the phone line actually completes a job.
+
+    THIS WIDGET PRICES A JOB; IT DOES NOT BOOK ONE. That is not a gap. The
+    client's website runs its own separate booking system, unrelated to this
+    project, which books into the website itself rather than into Cal.com or
+    the spreadsheet - the "SALUS: Booking SS-..." texts sent through the same
+    Twilio account come from it. So a visitor can already book online there.
+
+    It deliberately gives no instructions on how to book. The client asked for
+    that on 23 Sep 2026: the visitor sees a price and his number, and chooses
+    the website or the phone for themselves.
     """
     call_number = config.CLIENT_PUBLIC_NUMBER
     return HTMLResponse(_WIDGET_HTML.replace("__CALL_NUMBER__", json.dumps(call_number)))
