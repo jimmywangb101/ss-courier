@@ -1247,8 +1247,7 @@ _WIDGET_HTML = """<!doctype html>
 <body>
 <div class="card">
   <h1>Get an instant delivery quote</h1>
-  <p class="sub">Same-day courier, 24 hours a day, 7 days a week.
-     This gives you a price only &mdash; call us to book.</p>
+  <p class="sub">Same-day courier, 24 hours a day, 7 days a week.</p>
 
   <form id="quoteForm" novalidate>
     <div class="field">
@@ -1271,7 +1270,7 @@ _WIDGET_HTML = """<!doctype html>
   </form>
 
   <div class="result" id="result"></div>
-  <p class="foot">Prices include VAT. Bookings are only confirmed by phone.</p>
+  <p class="foot">Prices include VAT.</p>
 </div>
 
 <script>
@@ -1299,11 +1298,10 @@ _WIDGET_HTML = """<!doctype html>
 
   function callButtonHtml() {
     if (!CALL_NUMBER) {
-      return '<p class="msg">Call us to book this in.</p>';
+      return '';
     }
     var tel = String(CALL_NUMBER).replace(/[^\\d+]/g, "");
-    return '<a class="call" href="tel:' + esc(tel) + '">Call ' + esc(CALL_NUMBER) +
-           ' to book</a>';
+    return '<a class="call" href="tel:' + esc(tel) + '">Call ' + esc(CALL_NUMBER) + '</a>';
   }
 
   function showResult(html, kind) {
@@ -1360,10 +1358,7 @@ _WIDGET_HTML = """<!doctype html>
           showResult(
             '<p class="price">\\u00A3' + Number(data.quote_gbp).toFixed(2) + '</p>' +
             '<p class="meta">Approximately ' + Number(data.distance_miles).toFixed(1) +
-            ' miles</p>' +
-            '<p class="msg"><strong>This is a price, not a booking.</strong> ' +
-            'Nothing has been reserved yet &mdash; ring us to book your collection.</p>' +
-            callButtonHtml(),
+            ' miles</p>' + callButtonHtml(),
             "quote"
           );
         } else if (data.action === "redirect") {
